@@ -1,0 +1,197 @@
+# Get ready 
+
+```{r setup, include=F}
+pacman::p_load(data.table, tidyverse, ggrepel, GGally, scales, ComplexHeatmap, limma, Biobase, cowplot)
+options(datatable.print.nrows = 20)
+source('./input/helper.R')
+
+# ------------------------------  
+# parameters to change
+# ------------------------------  
+
+# IRIS files -------------------
+iris_input_folder = './input/iris_files/' 
+
+# variables contained in the iris filenames separated by '-'
+column_names = c('cond', 'numb', 'tail')
+
+thr = 12000  # too small a colony
+
+# Plate maps -------------------
+
+# 1) create/adjust the 96w maps at './input/maps/library_plate_n.csv'
+
+# 2) go from 96w to 384w to 1536
+map96to384quadrants = registerQuadrants('384w', 
+  plate_number = c(
+
+    # first 384w plate
+    1,  # 96w plate number in quadrant 1 
+    2,  # 96w plate number in quadrant 2 
+    3,  # ...
+    2,  # 96w plate number in quadrant 4 
+
+    # second 384w plate
+    1,  # 96w plate number in quadrant 1 
+    2,  # 96w plate number in quadrant 2
+    3,  # ...
+    3,  # 96w plate number in quadrant 4
+
+    # third 384w plate
+    1, 2, 3, 1,
+
+    # fourth 384w plate
+    1, 2, 3, 2
+  ),
+  bio_rep = c(
+    1, 1, 1, 2, 
+    2, 3, 2, 3, 
+    3, 4, 4, 4, 
+    5, 5, 5, 6)
+)
+
+map384to1536quadrants = registerQuadrants('1536w', 
+  plate_number = c(1, 2, 3, 4)#, 
+  # if needed, specify bio and tech reps; if not specified, default biorep=1, techrep=1)
+  # bio_rep = c(1, 2, 1, 2)
+)
+```
+
+```{r}
+folders = list.files(iris_input_folder, full.names=T)
+
+iris = lapply(folders, loadIrisFiles) %>%
+  setNames(gsub(paste0(iris_input_folder, '/'), '', folders)) %>%
+  rbindlist(idcol='folder') %>%
+  group_by(folder) %>%   # to annotate the same way in each folder
+  mutate(plt1536 = match(file, unique(file))) %>%
+  separate(file, column_names, sep='-') %>%
+  mutate(tail = gsub('.JPG.iris', '', tail)) %>%
+  separate(tail, c('system_num', 'biorep1536')) %>%
+  rename(row1536=row, col1536=column) %>%
+  left_join(fread('./input/maps/systems.csv', colClasses='character')) 
+
+iris = left_join(map96to384quadrants, map384to1536quadrants, relationship='many-to-many') %>%
+  add384RowAndCol() %>% 
+  add1536RowAndCol() %>%
+  right_join(iris) %>% 
+  left_join(read96wMaps()) %>%
+  mutate(
+    colony_id  = interaction(plt1536, row1536, col1536),
+    biorep_all = interaction(across(contains('biorep'))) %>% as.numeric() %>% str_pad(2, pad='0')) %>%
+  setDT()
+```
+
+
+# QC and alternative analysis
+
+```{r}
+parallel::mclapply(unique(iris$folder), function(folder) {
+  
+  out_folder = paste0('./output/', folder)
+  if(!dir.exists(out_folder)) dir.create(out_folder, recursive = T)
+
+  fold = iris %>% filter(folder == {{folder}})
+  reps = c('biorep_all', 'biorep1536')
+
+  # split to wide  ---------------------
+  dat_wide = lapply(reps, function(x) {
+    form = as.formula(paste('... ~', x))
+    fold[[x]] = paste0('rep', fold[[x]])
+    fold %>%
+      # summarize gfp controls for there are hundreds of reps
+      .[, .(opacity = median(opacity)), by=c('genename', 'cond', 'numb', x)] %>%
+      dcast(form, value.var = 'opacity')
+  }) %>% setNames(reps) 
+
+
+  # plot-n-store the rep cor plots
+  lapply(reps, function(x) {
+    ggsave(paste0(out_folder, '/qc_', x, '_correlation.pdf'), 
+      plotReplicateCorrelation(dat_wide[[x]]), h=12, w=12
+    )
+  })
+
+
+  # plot-n-store the hierarchical clustering plots
+  lapply(reps, function(x) {
+    pdf(file=paste0(out_folder, '/qc_', x, '_clustering.pdf'), h=8, w=6)
+    plt = plotHC(dat_wide[[x]])
+    draw(plt)
+    dev.off()
+  })
+
+  getResultsFromLinearModel(dat_wide[['biorep_all']], folder)
+})
+```
+
+
+
+# Old analysis
+
+```{r}
+# subset based on recipient
+z = subset(iris, grepl('p-rcaT-Sen2', system_desc))
+
+# separate conditions
+z1 = subset(z, grepl('100100201', numb)) %>% rename(AraIPTG01 = opacity)
+z2 = subset(z, grepl('1001001', numb)) %>% select(IPTG01 = opacity)
+
+z3 = cbind(z1, z2) %>%
+  #Remove strains where opacity is less than 12000 in the IPTG plates (too
+  #small colonies to draw any conclusions)
+  filter(IPTG01>12000) %>%
+  mutate(
+    Z.IPTG    = scale(IPTG01),
+    Z.AraIPTG = scale(AraIPTG01),
+    ## in z diff: for blockers is the difference between AraIPTG-IPTG, for triggers is IPTG-AraIPTG
+    Z.diff    = Z.IPTG - Z.AraIPTG
+  )
+
+z4 = z3 %>%
+  group_by(genename) %>%
+  summarize(
+    Z.mean = mean(Z.diff, na.rm=T),
+    Z.sd   = sd(Z.diff, na.rm=T),
+    lower  = Z.mean - Z.sd,
+    upper  = Z.mean + Z.sd
+  ) %>%
+  # clean the names
+  mutate(
+    gene.name = sub("[.].*", "", genename),
+    gene.name = sub("_", ".", gene.name),
+    gene.name = sub("gp", "", gene.name)
+  )   %>% 
+  # drop the ones with SD is 'NA' i.e. genenames with a single replicate
+  filter(!is.na(Z.sd)) %>%
+  # call hits and add color helpers for plotting
+  mutate(
+    isHit = Z.mean > 1.8, 
+    ## for blockers we use blue "#377eb8ff", for triggers green 
+    color = ifelse(isHit, 'green4', 'grey65')
+  )
+
+(dotplot = z4 %>% {
+  ggplot(., aes(x = gene.name, y = Z.mean, ymin = lower, ymax = upper, 
+      fill = color, label = gene.name)) +
+  geom_pointrange(pch=21) +
+  scale_fill_identity() +
+  labs(
+    title = "Retron-Eco9 IPTG 0.1 mM", 
+    x = "Genes of phages P1 & T5 (n=293)", 
+    y = "Retron-Eco9 triggering score"
+  ) +
+  geom_text_repel(data = filter(., isHit), hjust=-0.2, vjust=0.2) +
+  theme_bw() +
+  theme(
+    text  = element_text(size = 10), 
+    axis.text.x = element_blank(), 
+    axis.ticks.x = element_blank(), 
+    panel.grid.major = element_blank(), 
+    panel.grid.minor = element_blank(), 
+    axis.ticks.length = unit(.2, "cm")
+  ) +
+  geom_hline(yintercept=1.8, linetype = "longdash", colour = "grey", size = 0.5) 
+  }
+)
+```
