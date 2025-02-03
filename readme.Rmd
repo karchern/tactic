@@ -1,4 +1,9 @@
-This script was initially written by Vallo Varik, to whom much of the credit should go.
+---
+title: "TACTIC analysis script"
+author: "Vallo Varik, Alessio Yang, Nicolai Karcher"
+date: "2025-02-03"
+output: html_document
+---
 
 # Get ready 
 
