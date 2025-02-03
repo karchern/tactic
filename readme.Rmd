@@ -21,7 +21,15 @@ source('./input/helper.R')
 iris_input_folder = './input/iris_files/' 
 
 # variables contained in the iris filenames separated by '-'
-column_names = c('cond', 'numb', 'tail')
+# TODO: Make Alessio explain to you the format of the iris files:
+# Iris output
+# Profile: Colony growth
+# Iris version: 0.9.7.8, revision id: 5121c26
+# /Users/alessio/Documents/PhD/T5_Library/Solid screens/2024_Feb_29_T5-P1_TACTIC_Sen2_Eco9_Eco1/2024_Feb_29_T5P1condensed_TACTIC/SpectetampIPTG-10010501-4_2.JPG
+# top left of the grid found at (0 , 33) # TODO: Am I right in asssuming that these top left/bottom right coordinates are simply 'sanity checks' to ensure IRIS found the grid properly?
+# bottom right of the grid found at (4036 , 2663)
+column_names = c("cond", "numb", "tail")
+#TODO: I understand what 'cond' stands for, but what does 'numb' and 'tail' stand for?
 
 thr = 12000  # too small a colony
 
@@ -30,6 +38,7 @@ thr = 12000  # too small a colony
 # 1) create/adjust the 96w maps at './input/maps/library_plate_n.csv'
 
 # 2) go from 96w to 384w to 1536
+# TODO: Let's please go through this as well... my brain hurts!
 map96to384quadrants = registerQuadrants('384w', 
   plate_number = c(
 
@@ -58,14 +67,16 @@ map96to384quadrants = registerQuadrants('384w',
     5, 5, 5, 6)
 )
 
-map384to1536quadrants = registerQuadrants('1536w', 
-  plate_number = c(1, 2, 3, 4)#, 
+map384to1536quadrants = registerQuadrants("1536w",
+  plate_number = c(1, 2, 3, 4) # ,
   # if needed, specify bio and tech reps; if not specified, default biorep=1, techrep=1)
   # bio_rep = c(1, 2, 1, 2)
 )
+
 ```
 
 ```{r}
+# TODO: Explain these to me please: Spectet     SpectetAra SpectetAraIPTG    SpectetIPTG
 folders = list.files(iris_input_folder, full.names=T)
 
 iris = lapply(folders, loadIrisFiles) %>%
@@ -100,7 +111,20 @@ parallel::mclapply(unique(iris$folder), function(folder) {
   if(!dir.exists(out_folder)) dir.create(out_folder, recursive = T)
 
   fold = iris %>% filter(folder == {{folder}})
-  reps = c('biorep_all', 'biorep1536')
+  # TODO: What is the difference between 'biorep_all' and 'biorep1536'?
+  reps = c("biorep_all", "biorep1536")
+
+  # TODO: Explain this to me:
+  # fold %>% select(cond, plt1536) %>% table()
+  #                 plt1536
+  # cond                1    2    3    4    5    6    7    8    9   10   11   12
+  #   Spectet        1536 1536    0    0    0    0    0    0    0    0    0    0
+  #   SpectetAra        0    0 1536 1536    0    0    0    0    0    0    0    0
+  #   SpectetAraIPTG    0    0    0    0 1536 1536 1536 1536    0    0    0    0
+  #   SpectetIPTG       0    0    0    0    0    0    0    0 1536 1536 1536 1536
+
+  # TODO:
+  # print(fold) and look at it!
 
   # split to wide  ---------------------
   dat_wide = lapply(reps, function(x) {
@@ -140,10 +164,12 @@ parallel::mclapply(unique(iris$folder), function(folder) {
 ```{r}
 # subset based on recipient
 #z = subset(iris, grepl("E. coli BW25113 p-rcaT-Eco1 (pMZ20)", system_desc))
-z <- iris %>% filter(system_desc == "E. coli BW25113 p-rcaT-Eco1 (pMZ20)")
+z = iris %>% filter(system_desc == "E. coli BW25113 p-rcaT-Eco1 (pMZ20)")
 
 # separate conditions
-# TODO: 
+# TODO: Understand format of numb column: what does 1001001 mean?
+# This used to be but didn't retain anything for z1
+# z1 = subset(z, grepl('10010201', numb)) %>% rename(AraIPTG01 = opacity)
 z1 = subset(z, grepl('10010201', numb)) %>% rename(AraIPTG01 = opacity)
 z2 = subset(z, grepl('1001001', numb)) %>% select(IPTG01 = opacity)
 
