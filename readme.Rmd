@@ -7,6 +7,7 @@ output: html_document
 
 # Get ready 
 
+
 ```{r setup, include=F}
 pacman::p_load(data.table, tidyverse, ggrepel, GGally, scales, ComplexHeatmap, limma, Biobase, cowplot, janitor)
 options(datatable.print.nrows = 20)
@@ -138,10 +139,12 @@ parallel::mclapply(unique(iris$folder), function(folder) {
 
 ```{r}
 # subset based on recipient
-z = subset(iris, grepl('p-rcaT-Sen2', system_desc))
+#z = subset(iris, grepl("E. coli BW25113 p-rcaT-Eco1 (pMZ20)", system_desc))
+z <- iris %>% filter(system_desc == "E. coli BW25113 p-rcaT-Eco1 (pMZ20)")
 
 # separate conditions
-z1 = subset(z, grepl('100100201', numb)) %>% rename(AraIPTG01 = opacity)
+# TODO: 
+z1 = subset(z, grepl('10010201', numb)) %>% rename(AraIPTG01 = opacity)
 z2 = subset(z, grepl('1001001', numb)) %>% select(IPTG01 = opacity)
 
 z3 = cbind(z1, z2) %>%
@@ -185,8 +188,8 @@ z4 = z3 %>%
   scale_fill_identity() +
   labs(
     title = "Retron-Eco9 IPTG 0.1 mM", 
-    x = "Genes of phages P1 & T5 (n=293)", 
-    y = "Retron-Eco9 triggering score"
+    x = "SET ME ", 
+    y = "Triggering score"
   ) +
   geom_text_repel(data = filter(., isHit), hjust=-0.2, vjust=0.2) +
   theme_bw() +
