@@ -1,3 +1,5 @@
+This script was initially written by Vallo Varik, to whom much of the credit should go.
+
 # Get ready 
 
 ```{r setup, include=F}
