@@ -8,7 +8,7 @@ output: html_document
 # Get ready 
 
 ```{r setup, include=F}
-pacman::p_load(data.table, tidyverse, ggrepel, GGally, scales, ComplexHeatmap, limma, Biobase, cowplot)
+pacman::p_load(data.table, tidyverse, ggrepel, GGally, scales, ComplexHeatmap, limma, Biobase, cowplot, janitor)
 options(datatable.print.nrows = 20)
 source('./input/helper.R')
 
