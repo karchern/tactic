@@ -328,5 +328,6 @@ getResultsFromLinearModel = function(dat, folder, plot_pca_qc=T) {
   ggsave(paste0('./output/', folder, '/res_volcano_', x, '.pdf'))
 
   fwrite(res, paste0('./output/', folder, '/res_', x, '.csv'))
+  return(res)
 }
 
