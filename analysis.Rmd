@@ -198,19 +198,22 @@ limma_results <- parallel::mclapply(unique(iris$folder), function(folder) {
   out_folder = paste0('./output/', folder)
   if(!dir.exists(out_folder)) dir.create(out_folder, recursive = T)
 
-  fold = iris %>% filter(folder == {{folder}})
+  fold = iris %>%
+    filter(folder == {{ folder }}) %>%
+    as.data.table()
   reps = c(
     biol_replicate_column_name,
     tech_replicate_column_name,
     plate_replicate_column_name
   )
+  
 
   # split to wide  ---------------------
   dat_wide = lapply(reps, function(x) {
     form = as.formula(paste('... ~', x))
     fold[[x]] = paste0('rep', fold[[x]])
     fold %>%
-      # summarize gfp controls for there are hundreds of reps
+      # take median values over other replicates
       .[, .(opacity = median(opacity)), by=c('genename', 'cond', 'numb', x)] %>%
       dcast(form, value.var = 'opacity')
   }) %>% setNames(reps) 
@@ -218,7 +221,7 @@ limma_results <- parallel::mclapply(unique(iris$folder), function(folder) {
 
   # plot-n-store the rep cor plots
   lapply(reps, function(x) {
-    ggsave(paste0(out_folder, '/qc_', x, '_correlation.pdf'), 
+    ggsave(paste0(out_folder, '/qc_', x, '_correlation_median_opacity_over_other_replicates.pdf'), 
       plotReplicateCorrelation(dat_wide[[x]]), h=12, w=12
     )
   })
@@ -226,7 +229,7 @@ limma_results <- parallel::mclapply(unique(iris$folder), function(folder) {
 
   # plot-n-store the hierarchical clustering plots
   lapply(reps, function(x) {
-    pdf(file=paste0(out_folder, '/qc_', x, '_clustering.pdf'), h=8, w=6)
+    pdf(file=paste0(out_folder, '/qc_', x, '_clustering_median_opacity_over_other_replicates.pdf'), h=8, w=6)
     plt = plotHC(dat_wide[[x]])
     draw(plt)
     dev.off()
