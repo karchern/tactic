@@ -1,3 +1,14 @@
+load_yaml_to_global <- function(file_path) {
+  # Read the YAML file
+  yaml_data <- yaml::read_yaml(file_path)
+
+  # Assign each key-value pair to the global environment
+  for (name in names(yaml_data)) {
+    assign(name, yaml_data[[name]], envir = .GlobalEnv)
+  }
+}
+
+
 read96wMaps <- function(folder = "./input/maps/") {
   lapply(list.files(folder, pattern = "library_plate", full.names = T), fread) %>%
     rbindlist()
@@ -255,7 +266,7 @@ getResultsFromLinearModel <- function(dat, folder, plot_pca_qc = T) {
     mutate(rep = gsub("ep", "", rep)) %>%
     group_by(cond, numb, rep) %>%
     mutate(
-      fitness = opacity / median(opacity[genename == "gfp"])
+      fitness = opacity / median(opacity[genename == control_gene_name])
     )
 
   # Remove the ones you have information only from one condition
@@ -269,7 +280,7 @@ getResultsFromLinearModel <- function(dat, folder, plot_pca_qc = T) {
   dat_long <- dat_long %>% filter(!genename %in% only_zeros_in_a_cond)
 
   fitness <- dat_long %>%
-    filter(genename != "gfp") %>%
+    filter(genename != control_gene_name) %>%
     select(-opacity) %>%
     pivot_wider(
       id_cols = genename,
