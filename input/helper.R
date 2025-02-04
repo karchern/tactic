@@ -149,7 +149,7 @@ plotReplicateCorrelation <- function(dat) {
   dat[!has_zero] %>%
     # filter(`rep1` > 0 & `rep2` > 0)  %>%
 
-    mutate(across(is.numeric, ~ log10(.x + thr))) %>%
+    mutate(across(is.numeric, ~ log10(.x + min_colony_size_opacity))) %>%
     {
       ggpairs(.,
         columns = 4:ncol(.), aes(color = cond, alpha = 0.3),
@@ -227,7 +227,7 @@ plotHC <- function(dat) {
   # m[is.na(m)] = 0 - thr
 
   pheatmap(
-    log10(m + thr), # assume multiplicative errors
+    log10(m + min_colony_size_opacity), # assume multiplicative errors
     annotation_col = select(meta, rep, conc, cond),
     annotation_colors = annCols,
     show_colnames = T,
