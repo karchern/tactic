@@ -1,17 +1,26 @@
 files <- list.files("/Users/karcher/tactic/input/maps", full.names = TRUE)
 files <- files[str_detect(files, "library_")]
 files_modified <- map(files, \(x) {
-    # browser()
+    plate_number <- str_split(x, "_plate_")[[1]][2]
+    plate_number <- str_replace(plate_number, ".csv", "")
+    plate_number <- as.numeric(plate_number)
     if (
-        str_detect(x, "_1") | str_detect(x, "_2") | str_detect(x, "_3")
+        plate_number %in% c(1, 2, 3)
     ) {
-        read_csv(x) %>%
+        xx <- read_csv(x) %>%
             mutate(biorep96 = 1)
     } else if (
-        str_detect(x, "_4") | str_detect(x, "_5") | str_detect(x, "_6")) {
-        read_csv(x) %>%
+        plate_number %in% c(4, 5, 6)
+    ) {
+        xx <- read_csv(x) %>%
             mutate(biorep96 = 2)
+    } else {
+        stop("This should never be reached - check your maps files for consistency")
     }
+
+    xx <- xx %>%
+        mutate(plt96 = plate_number)
+    return(xx)
 })
 map2(files, files_modified, \(x, y) {
     write_csv(y, x)
