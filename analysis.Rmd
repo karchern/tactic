@@ -11,76 +11,128 @@ output: html_document
 ```{r setup, include=F}
 pacman::p_load(data.table, tidyverse, ggrepel, GGally, scales, ComplexHeatmap, limma, Biobase, cowplot, janitor, yaml)
 options(datatable.print.nrows = 20)
-source("./input/helper.R")
+source("./helper.R")
 ```
 
 # Load configuration YAML file
 
-This file specifies important parameters for the analysis, including
-- z-score- and colony-size thresholds
-- Specifications regarding the number of biological-, technical- and plate-replicates (for elucidation see XXX) #TODO: elucidate this graphically somewhere
+This file specifies general parameters assumed in this script, such as thresholds for analysis, negative control gene name etc
 
 ```{r}
-yaml::read_yaml('./input/config.yaml')
+# Example usage
+load_yaml_to_global('./input/config.yaml')
 ```
 
+# Specify replicate information
+
+Experimental design can be complicated, with biological replicates and nested technical replicates. 
+Below, I implement sanity checks that specify the expected relationship/number of replicates in the experiment.
+This will be used for sanity checks down the line
+
 ```{r}
+# biological replicates
+biol_replicate_column_name <- 'biorep96'
+expected_num_biol_replicates <- 2
 
-# IRIS files -------------------
-iris_input_folder = './input/iris_files/' 
+# technical replicates
+tech_replicate_column_name <- 'techrep96'
+#expected_num_tech_replicates <- 2
+# If a vector, it means number of technical replicates can vary
+expected_num_tech_replicates <- c(2, 3)
 
-# variables contained in the iris filenames separated by '-'
-column_names = c("cond", "numb", "tail")
-# numb: code for the concentration of drugs.
-## For example, SpectetIPTG-100101-5_1.JPG: number 100101: Spectomycin concentration 100; Tetracycline concentration 10, IPTG concentration 1
-# tail: system_PLATEreplicate (third replicate in .docx)
-## For example, SpectetIPTG-100101-5_1.JPG: tail 5_1: system 5, PLATEreplicate 1
+# plate replicate
+plate_replicate_column_name <- "plate_replicate"
+# Some systems have 2, some 3 plate replicates
+# TODO: This would be better solved by a mapping of systems to plate replicates, but ok for now
+expected_num_plate_replicates <- c(2, 3)
 
+```
+
+# Specify experimental design
+
+This code block does 2 things
+- It loads the initial 96 well plate pipeting scheme, relating genes to their positions in the plate. It then maps individual wells of the 96 well plate to wells in the 384 well plate, and then to the 1536 well plate.
+- Furthermore, and importantly, the registerQuadrants function specify which plate are biol. replicates, and how these are later on further technically replicated in 384 well plates
+
+It is important to note that the final replication step (what I call 'plate replicate') is not encoded here, but instead encoded in the iris file names (see 'tail' in the config.yaml)
+
+```{r}
 # Plate maps -------------------
 
 # 1) create/adjust the 96w maps at './input/maps/library_plate_n.csv'
 
 # 2) go from 96w to 384w to 1536
 # TODO: Document the logic here somehow.
-map96to384quadrants = registerQuadrants('384w', 
-  plate_number = c(
-
-    # first 384w plate
-    1,  # 96w plate number in quadrant 1 
-    2,  # 96w plate number in quadrant 2 
-    3,  # ...
-    2,  # 96w plate number in quadrant 4 
-
-    # second 384w plate
-    4,  # 96w plate number in quadrant 1 
-    5,  # 96w plate number in quadrant 2
-    6,  # ...
-    6,  # 96w plate number in quadrant 4
-
-    # third 384w plate
-    1, 
-    2, 
-    3, 
-    1,
-
-    # fourth 384w plate
-    4, 
-    5, 
-    6, 
-    5
-  ),
-  bio_rep = c(
-    1, 1, 1, 1,
-    2, 2, 2, 2,
-    1, 1, 1, 1,
-    2, 2, 2, 2
-  ),
-  tech_rep = c(
-    1, 1, 1, 2,
-    1, 1, 1, 2,
-    2, 3, 2, 3,
-    2, 2, 3, 3
+# first 384w plate
+# second 384w plate
+# third 384w plate
+# fourth 384w plate
+plate_number_vector <- c(
+  1, 2, 3, 2, 
+  4, 5, 6, 6,
+  1, 2, 3, 1,
+  4, 5, 6, 5
   )
+bio_rep_vector <- c(
+  1, 1, 1, 1,
+  2, 2, 2, 2,
+  1, 1, 1, 1,
+  2, 2, 2, 2
+)
+tech_rep_vector <- c(
+  1, 1, 1, 2,
+  1, 1, 1, 2,
+  2, 3, 2, 3,
+  2, 2, 3, 3
+)
+
+rep_information <- data.frame(
+  plate_number = plate_number_vector,
+  bio_rep = bio_rep_vector,
+  tech_rep = tech_rep_vector
+) %>%
+  as_tibble()
+
+print(str_c("We array a total of ", length(plate_number_vector), " 96 well plates with the following counts"))
+tmp <- table(plate_number_vector)
+names(tmp) <- str_c("Plate ", names(tmp))
+print(tmp)
+
+
+
+# Some diagnostics
+stopifnot(length(bio_rep_vector) == length(tech_rep_vector))
+if (length(unique(table(bio_rep_vector))) != 1) {
+  stop("Number of biological replicates is not consistent across 96 well plates, check how you do define bio_rep_vector")
+} else {
+  print(str_c("Number of biological replicates (inferred from bio_rep_vector): ", length(unique(bio_rep_vector))))
+  num_biol_repl <- length(unique(bio_rep_vector))
+}
+
+print("Overall, I'm seeing this:")
+tmp <- rep_information %>%
+  group_by(plate_number, bio_rep) %>%
+  tally() %>%
+  rename(tech_reps = n) %>%
+  print()
+w <- FALSE
+if (length(unique(tmp$tech_reps)) != 1) {
+  w <- TRUE
+  warning("Number of technical replicates is not consistent over plates; this is possible but please make sure this is intended.")
+}
+if (w) {
+  # seems idiotic but try putting it in the condition :)
+  Sys.sleep(2)
+}
+
+```
+
+
+```{r}
+map96to384quadrants = registerQuadrants('384w', 
+  plate_number = plate_number_vector,
+  bio_rep = bio_rep_vector,
+  tech_rep = tech_rep_vector
 )
 
 map384to1536quadrants = registerQuadrants("1536w",
@@ -88,6 +140,7 @@ map384to1536quadrants = registerQuadrants("1536w",
   plate_number = c(1, 2, 3, 4) 
 ) # TODO: For safety reasons, maybe remove biorep384, techrep384???
 ```
+
 
 ```{r}
 folders = list.files(iris_input_folder, full.names=T)
@@ -99,7 +152,7 @@ iris = lapply(folders, loadIrisFiles) %>%
   mutate(plt1536 = match(file, unique(file))) %>%
   separate(file, column_names, sep='-') %>%
   mutate(tail = gsub('.JPG.iris', '', tail)) %>%
-  separate(tail, c('system_num', 'biorep1536')) %>%
+  separate(tail, c('system_num', 'plate_replicate')) %>% # This line generates the 'plate replicate'
   rename(row1536=row, col1536=column) %>%
   left_join(fread('./input/maps/systems.csv', colClasses='character')) 
 
@@ -112,13 +165,28 @@ iris = left_join(map96to384quadrants, map384to1536quadrants, relationship = "man
   mutate(
     colony_id  = interaction(plt1536, row1536, col1536),
     biorep_all = interaction(across(contains('biorep'))) %>% as.numeric() %>% str_pad(2, pad='0')) %>%
-  setDT()
+  setDT() %>%
+    as_tibble()
 
+```
+
+# Clean up data
+
+```{r}
+iris <- iris %>%
+  select(
+    cond, numb, genename, system_desc, opacity, colony_id, folder,
+    all_of(c(biol_replicate_column_name, tech_replicate_column_name, plate_replicate_column_name))
+  ) %>%
+  # TODO: Rename biol_repliate_column_name to bio_rep and tech_replicate_column_name to tech_rep
+  as_tibble()
+```
+
+```{r}
 # Sanity check: iris object must not contain any NAs at this step
 if (any(is.na(iris))) {
-  stop("Collated results (iris object) contain NAs. Please check the input files and ensure map files/configuration is correct.")
+  stop("Collated results (iris object) contain NAs. This probably means something could not be joined in quadrant table joining. Please check the input files and ensure map files/configuration is correct.")
 }
-
 ```
 
 
@@ -131,7 +199,11 @@ limma_results <- parallel::mclapply(unique(iris$folder), function(folder) {
   if(!dir.exists(out_folder)) dir.create(out_folder, recursive = T)
 
   fold = iris %>% filter(folder == {{folder}})
-  reps = c("biorep_all", "biorep1536")
+  reps = c(
+    biol_replicate_column_name,
+    tech_replicate_column_name,
+    plate_replicate_column_name
+  )
 
   # split to wide  ---------------------
   dat_wide = lapply(reps, function(x) {
@@ -181,6 +253,8 @@ z_scoring_results <- map(unique(iris$folder), function(folder) {
     # Remove strains where opacity is less than min_colony_size_opacity in the IPTG plates (too
     # small colonies to draw any conclusions)
     filter(IPTG01 > min_colony_size_opacity) %>%
+    # TODO: compare how this behaves when you also group by plate_replicate (to account for plate effects)
+    # AND/OR compare this to within-plate gfp normalization beforehand (should have similar results)
     mutate(
       Z.IPTG    = scale(IPTG01),
       Z.AraIPTG = scale(AraIPTG01),
