@@ -1,3 +1,4 @@
+# TODO: Fix: Do not hardcode the path...
 files <- list.files("/Users/karcher/tactic/input/maps", full.names = TRUE)
 files <- files[str_detect(files, "library_")]
 files_modified <- map(files, \(x) {

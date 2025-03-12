@@ -1,6 +1,6 @@
 ---
 title: "TACTIC analysis script"
-author: "Vallo Varik, Alessio Yang, Nicolai Karcher"
+author: "Nicolai Karcher, Vallo Varik, Alessio Yang"
 date: "2025-02-03"
 output: html_document
 ---
@@ -9,7 +9,8 @@ output: html_document
 
 
 ```{r setup, include=F}
-pacman::p_load(data.table, tidyverse, ggrepel, GGally, scales, ComplexHeatmap, limma, Biobase, cowplot, janitor, yaml)
+# To install ggembl: https://git.embl.de/grp-zeller/ggembl
+pacman::p_load(data.table, tidyverse, ggrepel, GGally, scales, ComplexHeatmap, limma, Biobase, cowplot, janitor, yaml, RColorBrewer, vegan, patchwork, ggembl, circlize, RColorBrewer)
 options(datatable.print.nrows = 20)
 source("./helper.R")
 ```
@@ -20,7 +21,9 @@ This file specifies general parameters assumed in this script, such as threshold
 
 ```{r}
 # Example usage
-load_yaml_to_global('./input/config.yaml')
+load_yaml_to_global("./input/config.yaml")
+# This gets loaded from the yaml file
+names(cond_color_vector) <- cond_color_vector_levels
 ```
 
 # Specify replicate information
@@ -98,8 +101,6 @@ tmp <- table(plate_number_vector)
 names(tmp) <- str_c("Plate ", names(tmp))
 print(tmp)
 
-
-
 # Some diagnostics
 stopifnot(length(bio_rep_vector) == length(tech_rep_vector))
 if (length(unique(table(bio_rep_vector))) != 1) {
@@ -164,7 +165,9 @@ iris = left_join(map96to384quadrants, map384to1536quadrants, relationship = "man
   left_join(read96wMaps()) %>%
   mutate(
     colony_id  = interaction(plt1536, row1536, col1536),
-    biorep_all = interaction(across(contains('biorep'))) %>% as.numeric() %>% str_pad(2, pad='0')) %>%
+    biorep_all = interaction(across(c(biol_replicate_column_name, tech_replicate_column_name, plate_replicate_column_name))) %>% as.numeric() %>% str_pad(2, pad = "0")
+  ) %>%
+  mutate(plate_id = interaction(folder, cond, plate_replicate, numb)) %>%
   setDT() %>%
     as_tibble()
 
@@ -175,9 +178,10 @@ iris = left_join(map96to384quadrants, map384to1536quadrants, relationship = "man
 ```{r}
 iris <- iris %>%
   select(
-    cond, numb, genename, system_desc, opacity, colony_id, folder,
-    all_of(c(biol_replicate_column_name, tech_replicate_column_name, plate_replicate_column_name))
+    cond, numb, genename, system_desc, opacity, colony_id, folder,row1536, col1536, plate_id,
+    all_of(c(biol_replicate_column_name, tech_replicate_column_name, plate_replicate_column_name, 'biorep_all'))
   ) %>%
+  mutate(across(contains('rep'), as.numeric)) %>%
   # TODO: Rename biol_repliate_column_name to bio_rep and tech_replicate_column_name to tech_rep
   as_tibble()
 ```
@@ -190,10 +194,53 @@ if (any(is.na(iris))) {
 ```
 
 
-# QC and alternative analysis
+```{r}
+# Add edge information
+mi_row_1536 <- min(iris$row1536)
+ma_row_1536 <- max(iris$row1536)
+mi_col_1536 <- min(iris$col1536)
+ma_col_1536 <- max(iris$col1536)
+iris <- iris %>%
+  # TODO: It would probably be a good idea to leave gfp in here before z-scoring, but right now this isn't easy the way the data is formatted
+  #filter(genename == control_gene_name) %>%
+  # The edge definition should be in line with what Jacob describes in the tac/tic paper
+    mutate(colony_on_edge = 
+      row1536 == mi_row_1536 | 
+      row1536 == (mi_row_1536 + 1) | 
+      row1536 == (mi_row_1536 + 2) | 
+      row1536 == (mi_row_1536 + 3) | 
+      row1536 == (mi_row_1536 + 4) | 
+      row1536 == ma_row_1536 | 
+      row1536 == (ma_row_1536 - 1) | 
+      row1536 == (ma_row_1536 - 2) | 
+      row1536 == (ma_row_1536 - 3) | 
+      row1536 == (ma_row_1536 - 4) | 
+      col1536 == mi_col_1536 | 
+      col1536 == (mi_col_1536 + 1) | 
+      col1536 == (mi_col_1536 + 2) | 
+      col1536 == (mi_col_1536 + 3) | 
+      col1536 == (mi_col_1536 + 4) | 
+      col1536 == ma_col_1536 |
+      col1536 == (ma_col_1536 - 1) |
+      col1536 == (ma_col_1536 - 2) |
+      col1536 == (ma_col_1536 - 3) |
+      col1536 == (ma_col_1536 - 4)) %>%
+    # mutate(plate_id = interaction(cond, plate_replicate, numb)) %>%
+    mutate(folder_plate_id = interaction(folder, plate_replicate)) %>%
+    mutate(folder_plate_id = factor(folder_plate_id, levels = sort(unique(as.character(folder_plate_id))))) %>%
+    mutate(cond = factor(cond, levels = 
+      c(
+        unique(cond)[str_detect(unique(cond), "Ara")],
+        unique(cond)[!str_detect(unique(cond), "Ara")]
+    )))
+
+iris_orig <- iris
+```
+
+# QC and analysis
 
 ```{r}
-limma_results <- parallel::mclapply(unique(iris$folder), function(folder) {
+dev_null_for_now <- map(unique(iris$folder), function(folder) {
   
   out_folder = paste0('./output/', folder)
   if(!dir.exists(out_folder)) dir.create(out_folder, recursive = T)
@@ -204,105 +251,537 @@ limma_results <- parallel::mclapply(unique(iris$folder), function(folder) {
   reps = c(
     biol_replicate_column_name,
     tech_replicate_column_name,
-    plate_replicate_column_name
+    plate_replicate_column_name,
+    'biorep_all'
   )
   
+  # Before collapsing gfp replicates, generate a plot of raw and normalized gfp values
+  # This represents some code duplication but I can't really think of a better way
 
-  # split to wide  ---------------------
+  # # split to wide  ---------------------
   dat_wide = lapply(reps, function(x) {
     form = as.formula(paste('... ~', x))
     fold[[x]] = paste0('rep', fold[[x]])
     fold %>%
-      # take median values over other replicates
+      # take median values over other replicates - when x == biorep96 this will collapse the gfp replicates to a single value
       .[, .(opacity = median(opacity)), by=c('genename', 'cond', 'numb', x)] %>%
       dcast(form, value.var = 'opacity')
-  }) %>% setNames(reps) 
+  }) %>% setNames(reps)
 
+
+
+  ####################################
+  ### OLD but might still be useful!
+  ####################################
 
   # plot-n-store the rep cor plots
-  lapply(reps, function(x) {
-    ggsave(paste0(out_folder, '/qc_', x, '_correlation_median_opacity_over_other_replicates.pdf'), 
-      plotReplicateCorrelation(dat_wide[[x]]), h=12, w=12
+  cor_info <- lapply(reps, function(x) {
+    d <- plotReplicateCorrelation(dat_wide[[x]])
+    data <- d[[1]]
+    ploto <- d[[2]]    
+    ggsave(paste0(out_folder, "/qc_", x, "_correlation_median_opacity_over_other_replicates.pdf"),
+      ploto,
+      h = 12, w = 12
     )
+    return(data)
   })
+  names(cor_info) <- reps
+  # represnt biorep_all pairwise correlation matrix (one per condition) to judge the quality of the replicates
+  # color by biorep96, techrep96, plate_replicate
 
+  condition_wise_replicate_correlations <- cor_info[["biorep_all"]] %>%
+    group_by(cond, numb) %>%
+    nest() %>%
+    mutate(pairwise_cor_matrix = map(data, \(x)  {
+      x %>%
+        # select(-genename) %>%
+        as.data.frame() %>%
+        column_to_rownames("genename") %>%
+        cor(., use = "complete.obs") %>%
+        as.data.frame() %>%
+        as.matrix()
+      # rownames_to_column("genename")
+      # pivot_longer(-genename, names_to = "genename2", values_to = "correlation")
+      # identity()
+    }))
+
+  hm_list <- list()
+  for (i in 1:dim(condition_wise_replicate_correlations)[1]) {
+    x <- condition_wise_replicate_correlations$pairwise_cor_matrix[[i]]
+    cond <- condition_wise_replicate_correlations$cond[[i]]
+    numb <- condition_wise_replicate_correlations$numb[[i]]
+    
+    fo <- folder # whatever
+    tmp <- data.frame(biorep_all = rownames(x)) %>%
+      left_join(iris %>% select(cond, numb, folder, biorep96, techrep96, plate_replicate, biorep_all) %>% distinct() %>% filter(folder == fo) %>% arrange(biorep_all) %>% mutate(biorep_all = str_c("rep", as.character(biorep_all))))
+    tmp <- tmp[tmp$cond == cond, ]
+    tmp <- tmp[tmp$numb == numb, ]
+    
+    tmp <- tmp[match(tmp$biorep_all, rownames(x)), ]
+    stopifnot(all(tmp$biorep_all == rownames(x)))
+      
+    a <- assign_random_color(unique(tmp$biorep96), s = 1)
+    names(a) <- unique(tmp$biorep96)
+    b <- assign_random_color(unique(tmp$techrep96), s = 23)
+    names(b) <- unique(tmp$techrep96)
+    c <- assign_random_color(unique(tmp$plate_replicate), s = 3123)
+    names(c) <- unique(tmp$plate_replicate)
+    ha = HeatmapAnnotation(
+        biorep96 = as.character(tmp$biorep96), 
+        techrep96 = as.character(tmp$techrep96),
+        plate_replicate = as.character(tmp$plate_replicate),
+        col = list(
+          "biorep96" = a,
+          "techrep96" = b,
+          "plate_replicate" = c
+        )
+    )    
+
+    xx <- Heatmap(
+      x,
+      name = "correlation",
+      # col = colorRamp2(c(-1, 0, 1), c("blue", "white", "red")),
+      # colors should range from 0 to 1, white to red
+      col = colorRamp2(c(min(x), 1), c("white", "red")),
+      show_row_names = TRUE,
+      show_column_names = TRUE,
+      cluster_rows = TRUE,
+      cluster_columns = TRUE,
+      # add title
+      column_title = str_c(cond, numb),
+      top_annotation = ha
+    ) %>%
+      draw() %>%
+      grid.grabExpr()
+    hm_list[[length(hm_list) + 1]] <- xx
+  }
+
+  pdf(file = paste0(out_folder, "/pairwise_replicate_correlation_matrix.pdf"), h = 9, w = 16)
+    plot(wrap_plots(hm_list) + plot_layout(nrow = 2, byrow = TRUE, guides = "collect"))
+  dev.off()
 
   # plot-n-store the hierarchical clustering plots
   lapply(reps, function(x) {
-    pdf(file=paste0(out_folder, '/qc_', x, '_clustering_median_opacity_over_other_replicates.pdf'), h=8, w=6)
-    plt = plotHC(dat_wide[[x]])
+    pdf(file = paste0(out_folder, "/qc_", x, "_clustering_median_opacity_over_other_replicates.pdf"), h = 8, w = 6)
+    plt = plotHC(dat_wide[[x]], meta_cols = c("cond", "numb", "rep"), value_col_name = 'value')
     draw(plt)
     dev.off()
   })
+  
+  # Also without averaging, over all replicates, with sensible color scale
+  pdf(file=paste0(out_folder, '/qc_', 'clustering_median_opacity_over_other_replicates.pdf'), h=8, w=6)
+    plt = plotHC(
+      fold %>% 
+        filter(genename != control_gene_name) %>% 
+        select(genename, cond, numb, opacity, contains("rep")),
+      meta_cols = c("cond", "numb", colnames(fold)[str_detect(colnames(fold), "rep")]),
+      pivlong = FALSE,
+      value_col_name= 'opacity'
+    )
+    draw(plt)
+  dev.off()
 
-  getResultsFromLinearModel(dat_wide[['biorep_all']], folder)
+  # distances <- fold %>%
+  #   mutate(tmp = str_c(cond, biorep96, techrep96, plate_replicate, numb, sep = "___")) %>%
+  #   filter(genename != control_gene_name) %>%
+  #   pivot_wider(
+  #     id_cols = genename,
+  #     names_from = tmp,
+  #     values_from = opacity
+  #   ) %>%
+  #   as.data.frame() %>%
+  #     column_to_rownames("genename") %>%
+  #     {
+  #       log10((.) + min_colony_size_opacity)
+  #     } %>%
+  #     t() %>%
+  #       dist()
+
+  #   meta <- data.frame(tmp = rownames(as.matrix(distances))) %>%
+  #     mutate(
+  #       cond = str_split_fixed(tmp, "___", n = 10)[, 1],
+  #       biorep96 = str_split_fixed(tmp, "___", n = 10)[, 2],
+  #       techrep96 = str_split_fixed(tmp, "___", n = 10)[, 3],
+  #       plate_replicate = str_split_fixed(tmp, "___", n = 10)[, 4]
+  #     )
+
+  #   pcoa <-  distances %>%
+  #       cmdscale() %>%
+  #       as.data.frame() %>%
+  #       rownames_to_column("tmp") %>%
+  #       mutate(
+  #         cond = str_split_fixed(tmp, "___", n = 10)[, 1],
+  #         biorep96 = str_split_fixed(tmp, "___", n = 10)[, 2],
+  #         techrep96 = str_split_fixed(tmp, "___", n = 10)[, 3],
+  #         plate_replicate = str_split_fixed(tmp, "___", n = 10)[, 4]
+  #       ) %>%
+  #       as_tibble() %>%
+  #         rename(`PCo 1` = V1, `PCo 2` = V2) %>%
+  #         mutate(cond = factor(cond, levels = c(
+  #           unique(cond)[str_detect(unique(cond), "Ara")],
+  #           unique(cond)[!str_detect(unique(cond), "Ara")]
+  #         )))
+
+  #   stopifnot(all(meta$tmp == rownames(as.matrix(distances))))
+
+  #   # adonis/rep
+  #   adonis_objects <- map(
+  #     c("cond",
+  #       "cond_ara",
+  #       reps,
+  #       str_c(reps, collapse = " + ")
+  #       ), \(r){
+  #     return(adonis2(
+  #       as.formula(paste("distances ~ ", r)),
+  #       meta %>% mutate(cond_ara = ifelse(str_detect(cond, "Ara"), "ara_yes", "ara_no"))
+  #     ))
+  #   })
+
+  #   pcoa_plots <- map(
+  #     c(
+  #       "cond",
+  #       reps
+  #     ), \(r){
+  #       if (r == "techrep96" || r == "plate_replicate") {
+  #         plot <- ggplot(pcoa, aes(x = `PCo 1`, y = `PCo 2`, color = biorep96, shape = .data[[r]])) +
+  #           geom_point() +
+  #           facet_wrap(. ~ cond, nrow = 2, scales = "free") +
+  #           scale_shape_manual(values = c(
+  #             "1" = 1,
+  #             "2" = 2,
+  #             "3" = 3,
+  #             "4" = 4,
+  #             "5" = 5
+  #           )) +
+  #           labs(title = r) +
+  #           theme_presentation()
+  #       } else {
+  #         plot <- ggplot(pcoa, aes(x = `PCo 1`, y = `PCo 2`, color = .data[[r]])) +
+  #           geom_point() +
+  #           labs(title = r) +
+  #           theme_presentation()
+  #       }
+  #     }
+  #   )
+
+  #   # Save the pcoa plots using patchwork
+  #   ggsave(
+  #     plot = wrap_plots(pcoa_plots) + plot_layout(byrow = TRUE, widths = c(1, 1), heights = c(1, 1)),
+  #     filename = str_c(out_folder, "/pcoa_plots.pdf"),
+  #     width = 10,
+  #     height = 8
+  #   )
+
+  # TODO: Clean this up and compare z-score analysis to Limma
+  return() #for now
+  dat <- dat_wide[['biorep_all']] %>%
+    # TODO: This looks hard-coded and dangerous
+    # TODO: We need to fix the fucking format of this, it is impossible for me to make sense of
+    filter(numb %in% c("10010201", "10010500201", "1001001", "100105001")) %>%
+    mutate(cond = gsub("Spectet|Spectetamp", "", cond))
+
+  dat_long <- dat %>%
+    # make sure to retain values_drop_na or the plotMDS will not work
+    pivot_longer(contains("rep"), names_to = "rep", values_to = "opacity", values_drop_na = T) %>%
+    mutate(rep = gsub("ep", "", rep)) %>%
+    group_by(cond, numb, rep) %>%
+    mutate(
+      fitness_median_gfp = opacity / median(opacity[genename == "gfp"]),
+      fitness_z_score_by_plate = scale(opacity)[, 1]
+    )
+
+  # Remove the ones you have information only from one condition
+  # Why? lmFit can report back logFC NA, but method='robust' will trip 'rlm' up
+  only_zeros_in_a_cond <- dat_long %>%
+    group_by(cond, genename) %>%
+    summarize(mu = mean(fitness_median_gfp, na.rm = T)) %>%
+    filter(
+      mu == 0
+    ) %>%
+    ungroup() %>%
+    select(genename) %>%
+    distinct() %>%
+    pull(genename)
+
+  print(str_c("Removing ", length(only_zeros_in_a_cond), " genes with only zeros in a condition (not sure what this does...)"))
+  dat_long <- dat_long %>% filter(!genename %in% only_zeros_in_a_cond)
+
+  fitness_long <- dat_long %>%
+    filter(genename != control_gene_name) %>%
+    select(-opacity) %>%
+    mutate(
+      fitness_median_gfp_log2 = log2(fitness_median_gfp)
+    )
+
+  res_z_score <- getResultsFromLinearModel(fitness_long, folder, type = "biorep_all", normalize_how = "z_score_by_plate")
+  res_median_gfp <- getResultsFromLinearModel(fitness_long, folder, type = "biorep_all", normalize_how = "median_gfp_log2")
 })
 ```
 
-
-
-# Old analysis
+# Z-score-based analysis (better)
 
 ```{r}
-z_scoring_results <- map(unique(iris$folder), function(folder) {
-  out_folder = paste0('./output/', folder)
-  z = iris %>% filter(folder == {{ folder }})
+# Reload original iris object
+iris <- iris_orig %>%
+  # Remove the doubleplasmid experiment for now
+  # TODO: Discuss with Alessio if we should include this
+  filter(!str_detect(folder, "doubleplasmid")) %>%
+  {
+    if (visualize_only_control_and_treatment_conditions) {
+      (.) %>% filter(grepl("10010201", numb) | grepl("1001021", numb) | grepl("1001001", numb) | grepl("100101", numb)) # SpectetAraIPTG (library + system induced, with low and high concentrations) and SpectetIPTG (only system induced))
+    } else {
+      (.)
+    }
+  }
+  
+# Plot raw opacities by system/plate and edge
+value_tp <- 'opacity'
+mi <- min(iris[[value_tp]])
+ma <- max(iris[[value_tp]])
 
-  # TODO: relying on the `numb` column here is not the best idea
-  z1 = subset(z, grepl("10010201", numb)) %>% rename(AraIPTG01 = opacity)
-  z2 = subset(z, grepl("1001001", numb)) %>% select(IPTG01 = opacity)
-
-  z3 = cbind(z1, z2) %>%
-    # Remove strains where opacity is less than min_colony_size_opacity in the IPTG plates (too
-    # small colonies to draw any conclusions)
-    filter(IPTG01 > min_colony_size_opacity) %>%
-    # TODO: compare how this behaves when you also group by plate_replicate (to account for plate effects)
-    # AND/OR compare this to within-plate gfp normalization beforehand (should have similar results)
-    mutate(
-      Z.IPTG    = scale(IPTG01),
-      Z.AraIPTG = scale(AraIPTG01),
-      # TODO: We should probably incoorporate a parameter to designate whether its TIC or TAC
-      ## in z diff: for blockers is the difference between AraIPTG-IPTG, for triggers is IPTG-AraIPTG
-      Z.diff    = Z.IPTG - Z.AraIPTG
-    )
-
-  z4 = z3 %>%
-    group_by(genename) %>%
-    summarize(
-      Z.mean = mean(Z.diff, na.rm = T),
-      Z.sd   = sd(Z.diff, na.rm = T),
-      lower  = Z.mean - Z.sd,
-      upper  = Z.mean + Z.sd
+get_opacity_measurement_plots(
+  iris,
+  'gfp',
+  value_tp,
+  "opacity_raw",
+  mi,
+  ma,
+  'Raw opacity values'
+)
+    
+# Normalize opacity values edge effects wrt the center of the plates (ALL values, not just gfp controls)
+edge_correction_factor_per_plate <- iris %>% 
+  group_by(
+      cond, numb, folder, plate_replicate, colony_on_edge
+  ) %>%
+    summarize(opacity = median(opacity)) %>%
+    pivot_wider(
+      id_cols = c(cond, numb, folder, plate_replicate),
+      names_from = colony_on_edge,
+      values_from = opacity
     ) %>%
-    # clean the names
-    mutate(
-      gene.name = sub("[.].*", "", genename),
-      gene.name = sub("_", ".", gene.name),
-      gene.name = sub("gp", "", gene.name)
-    ) %>%
-    # drop the ones with SD is 'NA' i.e. genenames with a single replicate
-    filter(!is.na(Z.sd)) %>%
-    # call hits and add color helpers for plotting
-    mutate(
-      isHit = Z.mean > z_score_cutoff,
-      ## for blockers we use blue "#377eb8ff", for triggers green
-      color = ifelse(isHit, "green4", "grey65")
+    mutate(edge_correction_factor = `TRUE` / `FALSE`) %>%
+    select(folder, plate_replicate, edge_correction_factor)
+iris <- iris %>%
+  left_join(edge_correction_factor_per_plate) %>%
+  mutate(
+    opacity_edge_corrected = ifelse(
+      colony_on_edge,
+      as.integer(opacity / edge_correction_factor),
+      opacity
     )
+  )
+# Visualize edge-corrected opacity values
+value_tp <- 'opacity_edge_corrected' 
+mi <- min(iris[[value_tp]])
+ma <- max(iris[[value_tp]])
+get_opacity_measurement_plots(
+  iris,
+  "gfp",
+  value_tp,
+  "opacity_edge_corrected",
+  mi,
+  ma,
+  'Edge-corrected opacity values'
+)
 
-  z_score_plot <-(dotplot = z4 %>%
-    {
-      ggplot(., aes(
-        x = gene.name, y = Z.mean, ymin = lower, ymax = upper,
-        fill = color, label = gene.name
-      )) +
-        geom_pointrange(pch = 21) +
-        scale_fill_identity() +
-        labs(
-          title = folder,
-          x = "Genes",
-          y = "Triggering score"
-        ) +
-        geom_text_repel(data = filter(., isHit)) +
+iris <- iris %>%
+  # Keep only 'treatment (low IPTG)', 'treatment (high IPTG)' and 'control'
+  filter(grepl("10010201", numb) | grepl("1001021", numb) | grepl("1001001", numb) | grepl("100101", numb)) # SpectetAraIPTG (library + system induced, with low and high concentrations) and SpectetIPTG (only system induced)
+  # TODO: Carry-over both IPTG concentrations
+  #filter(grepl("1001021", numb) | grepl("1001001", numb)) # OR this if you want high IPTG
+
+iris <- iris %>%
+  select(-opacity) %>% # We have edge-controlled opacity now, so we dont need this anymore
+group_by(
+  folder, cond, numb, folder_plate_id,
+) %>%
+mutate(
+  # Get z-scores of edge-corrected opacity values by *plate* (this should account for plate effects)    
+  ec_opacity_z_scored_by_plate_including_gfp = round(scale(opacity_edge_corrected)[, 1], 3),
+  # Also get ec_opacity corrected by a plates (median) gfp opacity - I think this should give us very similar results in the end
+  ec_opacity_corrected_by_gfp = round(opacity_edge_corrected / median(opacity_edge_corrected[genename == control_gene_name]), 3)
+)
+
+# Visualize the edge-corrected and normalized values
+value_tp <- "ec_opacity_z_scored_by_plate_including_gfp"
+mi <- min(iris[[value_tp]])
+ma <- max(iris[[value_tp]])
+get_opacity_measurement_plots(
+  iris,
+  "gfp",
+  value_tp,
+  "ec_opacity_z_scored_by_plate_including_gfp",
+  mi,
+  ma,
+  'Z-scored, edge-corrected opacity values'
+)
+value_tp <- "ec_opacity_corrected_by_gfp"
+mi <- min(iris[[value_tp]])
+ma <- max(iris[[value_tp]])
+get_opacity_measurement_plots(
+  iris,
+  "gfp",
+  value_tp,
+  "ec_opacity_corrected_by_gfp",
+  mi,
+  ma,
+  "edge-corrected opacity values\nnormalized by plate-wise median gfp"
+)
+
+iris <- iris %>%
+  # ! remove the control gene from the analysis
+  filter(genename != control_gene_name) %>%
+  mutate(iptgconc = case_when(
+    numb == "1001001" ~ "iptg_low",
+    numb == "100101" ~ "iptg_high",
+    numb == "10010201" ~ "iptg_low",
+    numb == "1001021" ~ "iptg_high",
+    TRUE ~ NA
+  ))
+  
+if (any(is.na(iris$iptgconc))) {
+  stop("iris contains NAs in iptgconc. This should never happen. This probably means something in your encoding changed. Please talk to Nic.")
+}
+  iris %>%
+  group_by(
+    folder, iptgconc, genename, biorep_all
+  ) %>%
+  # Filter 1: Remove strains where opacity is less than min_colony_size_opacity in IPTG plates (both low- and high concentration)
+  filter(opacity_edge_corrected[cond == "SpectetIPTG"] > min_colony_size_opacity) %>%
+    # TODO: Filter 2: Remove mucoid colonies - I'm actually skipping this for now since I don't quite understand what the measure is
+    # (from Bobonis et al: "[...] (2) mucoid in the control plates44 (colony densities of both replicates > 51 [..]").
+    # TODO: Filter 3: noisy strains in control/treatment plates standard deviation > 23000 (this is taken 1-1 from Bobonis et al.)
+    # I'm also skipping this for now
+    ungroup()
+
+iris <-  iris %>%
+   mutate(
+    cond = case_when(
+      numb == "10010201" ~ "SpectetAraIPTGLow",
+      numb == "1001021" ~ "SpectetAraIPTGHigh",
+      numb == "1001001" ~ "SpectetIPTGLow",
+      numb == "100101" ~ "SpectetIPTGHigh"
+    )
+  )
+
+# iris_wide <-
+iris_wide <- iris %>%
+  # TODO: This is hacky for now and needs to be cleaned up, but probably on the raw data sid
+   pivot_wider(
+    id_cols = c(folder, genename, biorep_all),
+    names_from = cond,
+    values_from = .data[[effect_size_name_for_non_limma_analyis]] # any of: 'ec_opacity_z_scored_by_plate_including_gfp', 'ec_opacity_corrected_by_gfp', ""
+  ) %>%
+  mutate(
+    effect_size_iptghigh = SpectetAraIPTGHigh - SpectetIPTGHigh,
+    effect_size_iptglow = SpectetAraIPTGLow - SpectetIPTGLow
+    ) %>%
+    arrange(desc(effect_size_iptghigh))  
+
+iris_hits <-  iris_wide %>%
+  group_by(folder, genename) %>%
+  summarize(
+    effect_size_iptghigh_mean = mean(effect_size_iptghigh, na.rm = T),
+    effect_size_iptghigh_sd   = sd(effect_size_iptghigh, na.rm = T),
+    lower_iptghigh  = effect_size_iptghigh_mean - effect_size_iptghigh_sd,
+    upper_iptghigh  = effect_size_iptghigh_mean + effect_size_iptghigh_sd,
+    # Same but for iptghigh
+    effect_size_iptglow_mean = mean(effect_size_iptglow, na.rm = T),
+    effect_size_iptglow_sd   = sd(effect_size_iptglow, na.rm = T),
+    lower_iptglow  = effect_size_iptglow_mean - effect_size_iptglow_sd,
+    upper_iptglow  = effect_size_iptglow_mean + effect_size_iptglow_sd
+  )
+
+if (any(is.na(iris_hits))) {
+  stop("iris_hits contains NAs. I was afraid this might be the case, but I haven't implemented a solution yet. Talk to Nic please.")
+}
+
+iris_hits <- iris_hits %>%
+  # call hits and add color helpers for plotting
+  mutate(
+    is_hit_iptg_high = ifelse(!str_detect(folder, "Retron"), effect_size_iptghigh_mean > z_score_cutoff, effect_size_iptghigh_mean < -z_score_cutoff),
+    is_hit_iptg_low = ifelse(!str_detect(folder, "Retron"), effect_size_iptglow_mean > z_score_cutoff, effect_size_iptglow_mean < -z_score_cutoff),
+    ## for blockers we use blue "#377eb8ff", for triggers green
+    # color = ifelse(is_hit_iptg_high, "green4", "grey65")
+    hit = case_when(
+      is_hit_iptg_high & is_hit_iptg_low ~ "both",
+      is_hit_iptg_high ~ "high",
+      is_hit_iptg_low ~ "low",
+      TRUE ~ "none"
+    ),
+    hit_alpha = case_when(
+      is_hit_iptg_high & is_hit_iptg_low ~ 1,
+      is_hit_iptg_high ~ 1,
+      is_hit_iptg_low ~ 1,
+      TRUE ~ 0.15
+    ),
+    color = case_when(
+      is_hit_iptg_high & is_hit_iptg_low ~ "green4",
+      is_hit_iptg_high ~ "#9c5703",
+      is_hit_iptg_low ~ "#e6b967",
+      TRUE ~ "grey65"
+    )
+  ) %>%
+  mutate(hit = factor(hit, levels = c("both", "high", "low", "none")))
+
+# get the color mapping like so, bit ugly but what can you do
+tmp <- iris_hits %>%
+  ungroup() %>%
+  select(hit, color) %>%
+  distinct()
+hit_color_mapping <- tmp$color
+names(hit_color_mapping) <- tmp$hit
+hit_alpha_mapping <- map2_dbl(hit_color_mapping, names(hit_color_mapping), \(entry, na) 
+  if (na == "none") {
+    return(0.25)
+  } else {
+    return(0.75)
+  }
+)
+
+
+# Scatterplots of effect sizes between high- and low induction.
+# Make sure to include the effect size name in the output file
+iptg_high_low_plot_one_point_per_gene <- get_iptg_scatter(
+  iris_hits_input = iris_hits %>%
+      arrange(desc(hit)),
+  plot_means = TRUE
+)
+
+ggsave(
+  plot = iptg_high_low_plot_one_point_per_gene,
+  filename = str_c(out_folder, "/iptg_high_low_scatter_one_point_per_gene_", effect_size_name_for_non_limma_analyis,  ".pdf"),
+  width = 7,
+  height = 4.875
+)
+
+iptg_high_low_plot_all_measurements <- get_iptg_scatter(
+  iris_hits_input = iris_wide %>%
+      left_join(iris_hits) %>%
+      arrange(desc(hit)),
+  plot_means = FALSE
+)      
+
+ggsave(
+  plot = iptg_high_low_plot_all_measurements,
+  filename = str_c(out_folder, "/iptg_high_low_scatter_all_measurements_", effect_size_name_for_non_limma_analyis,  ".pdf"),
+  width = 8,
+  height = 4.5
+)
+
+# TODO: Continue
+
+z_score_plot_high <-  ggplot(data = iris_hits) +
+      geom_pointrange(
+        aes(x = genename, y = effect_size_iptghigh_mean, ymin = effect_size_iptghigh_mean - effect_size_iptghigh_sd, ymax = effect_size_iptghigh_mean + effect_size_iptghigh_sd), pch = 21, size = 0.5) +
+        geom_point(aes(x = genename, y = effect_size_iptghigh_mean), shape = 21, size = 0.5, alpha = 0.3, inherit.aes = FALSE) +
+      scale_fill_identity() +
+      labs(
+        x = "Genes",
+        y = "Triggering/Blocking score"
+      ) +
+      geom_text_repel(data = iris_hits %>% filter(is_hit_iptg_high), aes(x = genename, y = effect_size_iptghigh_mean, label = genename), max.overlaps = Inf) +
         theme_bw() +
         theme(
           text = element_text(size = 10),
@@ -312,15 +791,96 @@ z_scoring_results <- map(unique(iris$folder), function(folder) {
           panel.grid.minor = element_blank(),
           axis.ticks.length = unit(.2, "cm")
         ) +
-        geom_hline(yintercept = z_score_cutoff, linetype = "longdash", colour = "grey", size = 0.5)
+        facet_wrap(. ~ folder, ncol = 1) +
+          geom_hline(data = data.frame(folder = unique(iris_hits$folder)) %>%
+            mutate(z_score_cutoff = ifelse(!str_detect(folder, "Retron"), z_score_cutoff, -z_score_cutoff)), aes(yintercept = z_score_cutoff), linetype = "longdash", colour = "grey", size = 0.5)
+
+z_score_plot_low <-  ggplot(data = iris_hits) +
+      geom_pointrange(
+        aes(x = genename, y = effect_size_iptglow_mean, ymin = effect_size_iptglow_mean - effect_size_iptglow_sd, ymax = effect_size_iptglow_mean + effect_size_iptglow_sd), pch = 21, size = 0.5) +
+        geom_point(aes(x = genename, y = effect_size_iptglow_mean), shape = 21, size = 0.5, alpha = 0.3, inherit.aes = FALSE) +
+      scale_fill_identity() +
+      labs(
+        x = "Genes",
+        y = "Triggering/Blocking score"
+      ) +
+      geom_text_repel(data = iris_hits %>% filter(is_hit_iptg_low), aes(x = genename, y = effect_size_iptglow_mean, label = genename), max.overlaps = Inf) +
+        theme_bw() +
+        theme(
+          text = element_text(size = 10),
+          axis.text.x = element_blank(),
+          axis.ticks.x = element_blank(),
+          panel.grid.major = element_blank(),
+          panel.grid.minor = element_blank(),
+          axis.ticks.length = unit(.2, "cm")
+        ) +
+        facet_wrap(. ~ folder, ncol = 1) +
+          geom_hline(data = data.frame(folder = unique(iris_hits$folder)) %>%
+            mutate(z_score_cutoff = ifelse(!str_detect(folder, "Retron"), z_score_cutoff, -z_score_cutoff)), aes(yintercept = z_score_cutoff), linetype = "longdash", colour = "grey", size = 0.5)
+
+
+ggsave(
+  plot = (z_score_plot_high + ggtitle("IPTG: High") + theme(plot.title = element_text(size = 20, face = "bold"))) + (z_score_plot_low + ggtitle("IPTG: Low") + theme(plot.title = element_text(size = 20, face = "bold"))) + plot_layout(ncol = 2),
+  filename = str_c(out_folder, "/z_score_plot.pdf"),
+  width = 16,
+  height = 20
+)
+```
+
+```{r}
+  # Gene-wise analysis
+  mi <- min(iris[[effect_size_name_for_non_limma_analyis]])
+  ma <- max(iris[[effect_size_name_for_non_limma_analyis]])
+  data <- iris %>%
+    as_tibble() %>%
+    group_by(folder, genename) %>%
+    mutate(cond = factor(cond, levels = c(
+      unique(cond)[str_detect(unique(cond), "Ara")],
+      unique(cond)[!str_detect(unique(cond), "Ara")]
+    ))) %>%
+    mutate(cond_ara = ifelse(str_detect(cond, "Ara"), "ara_yes", "ara_no")) %>%
+    mutate(biorep96 = factor(biorep96)) %>%
+      mutate(techrep96 = factor(techrep96)) %>%
+      mutate(plate_replicate = factor(plate_replicate)) %>%
+      mutate(iptgconc_plate_id = interaction(iptgconc, plate_replicate, sep = ".plate")) %>%
+      mutate(iptgconc_plate_id = factor(iptgconc_plate_id, levels = sort(unique(as.character(iptgconc_plate_id))))) %>%
+      arrange(plate_id)
+  
+  data_plot <- data %>%
+    group_by(folder, genename) %>%
+    mutate(plate_replicate = str_c('Plate: ', plate_replicate)) %>%
+    mutate(biorep96 = str_c('biorep: ', biorep96)) %>%
+    nest() %>%
+      mutate(
+        plottt = map(data, \(x) {
+          return(
+            ggplot(x, aes(x = plate_replicate, y = .data[[effect_size_name_for_non_limma_analyis]], color = cond_ara, group = cond_ara, shape = techrep96)) +
+              # geom_boxplot(outlier.color = NA) +
+              geom_jitter(position = position_jitterdodge(jitter.width = 0.125, jitter.height = 0), alpha = 0.5) +
+              theme_presentation() +
+              facet_wrap(iptgconc ~ biorep96, ncol = 2, scales = 'free_x') +
+              labs(title = genename) +
+              ylim(c(-5, ma*1.01)) +
+              theme(
+                axis.text.x = element_text(angle = 45, hjust = 1)
+              ) +
+              ylab("Effect size")
+          )
+        })
+      )
+    
+    pwalk(list(data_plot$plottt, data_plot$folder, data_plot$genename), \(plo, fol, gn) {
+        # if str_c(out_folder, "/", fol, '/opacities_per_gene') doesnt exit, generate it
+        if (!dir.exists(str_c(out_folder, "/", fol, '/opacities_per_gene'))) {
+          dir.create(str_c(out_folder, "/", fol, '/opacities_per_gene'), recursive = TRUE)
+        }
+        ggsave(
+          plot = plo,
+          filename = str_c(out_folder, "/", fol, '/opacities_per_gene', "/", gn, "_", effect_size_name_for_non_limma_analyis, ".pdf"),
+          width = 6,
+          height = 5
+        )
     })
 
-  ggsave(
-    plot = z_score_plot,
-    filename = str_c(out_folder, "/z_score_plot.pdf"),
-    width = 9,
-    height = 5
-  )
-  return(z4)
-})
 ```
+
