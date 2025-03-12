@@ -183,8 +183,8 @@ plotHC <- function(dat, meta_cols = NULL, pivlong = TRUE, value_col_name = NULL)
 
   # remove factor levels with all NA's ------
   percentage_of_nas <- dat %>%
+    select(contains("rep"), cond) %>%
     group_by(cond) %>%
-    select(contains("rep")) %>%
     summarize(across(everything(), ~ mean(is.na(.))))
 
   percentage_of_nas[percentage_of_nas == 1] <- NA
@@ -520,7 +520,7 @@ get_condition_wise_replicate_correlation_matrix <- function(m) {
 
     fo <- folder # whatever
     tmp <- data.frame(biorep_all = rownames(x)) %>%
-      left_join(iris %>% select(cond, numb, folder, biorep96, techrep96, plate_replicate, biorep_all) %>% distinct() %>% filter(folder == fo) %>% arrange(biorep_all) %>% mutate(biorep_all = str_c("rep", as.character(biorep_all))))
+      left_join(iris %>% select(cond, numb, folder, biorep96, techrep96, plate_replicate, biorep_all) %>% distinct() %>% filter(folder == fo) %>% arrange(biorep_all) %>% mutate(biorep_all = str_c("rep", as.character(biorep_all))), by = "biorep_all")
     tmp <- tmp[tmp$cond == cond, ]
     tmp <- tmp[tmp$numb == numb, ]
 
