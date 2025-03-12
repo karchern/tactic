@@ -287,7 +287,7 @@ getResultsFromLinearModel <- function(
     pivot_wider(
       id_cols = genename,
       names_from = c(cond, numb, rep),
-      values_from = fitness
+      values_from = all_of(normalize_how)
     ) %>%
     setDT()
   m <- fitness[, -1] %>%
@@ -309,7 +309,7 @@ getResultsFromLinearModel <- function(
   eset <- ExpressionSet(m, AnnotatedDataFrame(meta), AnnotatedDataFrame(f))
 
   if (plot_pca_qc) {
-    pdf(paste0("./output/", folder, "/qc_", x, "_pca.pdf"), h = 5, w = 10)
+    pdf(paste0("./output/", folder, "/qc_", type, "_pca.pdf"), h = 5, w = 10)
     par(mfrow = c(1, 2), pty = "s")
     plotMDS(eset, labels = pData(eset)[, "rep"], cex = 0.75)
     plotMDS(eset, labels = pData(eset)[, "cond"], cex = 0.75)
@@ -337,9 +337,9 @@ getResultsFromLinearModel <- function(
         theme_cowplot()
     }
 
-  ggsave(paste0("./output/", folder, "/res_volcano_", x, "__normalization_method_", normalize_how, ".pdf"))
+  ggsave(paste0("./output/", folder, "/res_volcano_", type, "__normalization_method_", normalize_how, ".pdf"))
 
-  fwrite(res, paste0("./output/", folder, "/res_", x, "__normalization_method_", normalize_how, ".csv"))
+  fwrite(res, paste0("./output/", folder, "/res_", type, "__normalization_method_", normalize_how, ".csv"))
   return(res)
 }
 

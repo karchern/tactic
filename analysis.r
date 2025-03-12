@@ -281,10 +281,7 @@ walk(unique(iris$folder), function(folder) {
   dev.off()
 
   # TODO: Clean this up and compare z-score analysis to Limma
-  return() # for now
   dat <- dat_wide[["biorep_all"]] %>%
-    # TODO: This looks hard-coded and dangerous
-    # TODO: We need to fix the fucking format of this, it is impossible for me to make sense of
     filter(numb %in% c("10010201", "10010500201", "1001001", "100105001")) %>%
     mutate(cond = gsub("Spectet|Spectetamp", "", cond))
 
@@ -292,6 +289,8 @@ walk(unique(iris$folder), function(folder) {
     # make sure to retain values_drop_na or the plotMDS will not work
     pivot_longer(contains("rep"), names_to = "rep", values_to = "opacity", values_drop_na = T) %>%
     mutate(rep = gsub("ep", "", rep)) %>%
+    # This normalizes by 'biorep_all' (which are nested within the plates)
+    # This comes from Vallo, originally
     group_by(cond, numb, rep) %>%
     mutate(
       fitness_median_gfp = opacity / median(opacity[genename == "gfp"]),
@@ -321,8 +320,8 @@ walk(unique(iris$folder), function(folder) {
       fitness_median_gfp_log2 = log2(fitness_median_gfp)
     )
 
-  res_z_score <- getResultsFromLinearModel(fitness_long, folder, type = "biorep_all", normalize_how = "z_score_by_plate")
-  res_median_gfp <- getResultsFromLinearModel(fitness_long, folder, type = "biorep_all", normalize_how = "median_gfp_log2")
+  res_median_gfp_log2 <- getResultsFromLinearModel(fitness_long, folder, type = "biorep_all", normalize_how = "fitness_median_gfp_log2")
+  res_z_score <- getResultsFromLinearModel(fitness_long, folder, type = "biorep_all", normalize_how = "fitness_z_score_by_plate")
 })
 
 ##################################
