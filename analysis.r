@@ -211,8 +211,8 @@ iris_orig <- iris
 # replication correlation QC plots + limma analysis
 ###################################################
 # TODO: Move QC plots into separate function (no need for this to be here...)
-
-rep_cor_qc_and_limma()
+# This returns the limma result(s), storing in tmp object for now
+tmp <- rep_cor_qc_and_limma()
 
 ##################################
 # Z-score-based analysis
