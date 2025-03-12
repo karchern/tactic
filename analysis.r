@@ -428,6 +428,11 @@ if (any(is.na(iris_hits))) {
   stop("iris_hits contains NAs. I was afraid this might be the case, but I haven't implemented a solution yet. Talk to Nic please.")
 }
 
+write_tsv(
+  iris_hits,
+  str_c(out_folder, "/z_score_effect_sizes.tsv")
+)
+
 iris_hits <- iris_hits %>%
   # call hits and add color helpers for plotting
   mutate(
