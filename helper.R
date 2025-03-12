@@ -139,8 +139,8 @@ loadIrisFiles <- function(folder) {
 plotReplicateCorrelation <- function(dat) {
   # remove factor levels with all NA's ------
   percentage_of_nas <- dat %>%
+    select(contains("rep"), cond) %>%
     group_by(cond) %>%
-    select(contains("rep")) %>%
     summarize(across(everything(), ~ mean(is.na(.))))
 
   percentage_of_nas[percentage_of_nas == 1] <- NA
