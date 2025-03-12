@@ -337,7 +337,7 @@ getResultsFromLinearModel <- function(
         theme_cowplot()
     }
 
-  ggsave(paste0("./output/", folder, "/res_volcano_", type, "__normalization_method_", normalize_how, ".pdf"))
+  ggsave(paste0("./output/", folder, "/res_volcano_", type, "__normalization_method_", normalize_how, ".pdf"), width = 7, height = 7)
 
   fwrite(res, paste0("./output/", folder, "/res_", type, "__normalization_method_", normalize_how, ".csv"))
   return(res)
@@ -666,7 +666,7 @@ rep_cor_qc_and_limma <- function() {
     # Why? lmFit can report back logFC NA, but method='robust' will trip 'rlm' up
     only_zeros_in_a_cond <- dat_long %>%
       group_by(cond, genename) %>%
-      summarize(mu = mean(fitness_median_gfp, na.rm = T)) %>%
+      summarize(mu = mean(fitness_median_gfp, na.rm = T), .groups = "drop_last") %>%
       filter(
         mu == 0
       ) %>%
@@ -675,7 +675,7 @@ rep_cor_qc_and_limma <- function() {
       distinct() %>%
       pull(genename)
 
-    print(str_c("Removing ", length(only_zeros_in_a_cond), " genes with only zeros in a condition (not sure what this does...)"))
+    # print(str_c("Removing ", length(only_zeros_in_a_cond), " genes with only zeros in a condition (not sure what this does...)"))
     dat_long <- dat_long %>% filter(!genename %in% only_zeros_in_a_cond)
 
     fitness_long <- dat_long %>%
