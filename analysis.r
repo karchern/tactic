@@ -205,6 +205,8 @@ iris <- iris %>%
 # Save original iris object for later
 iris_orig <- iris
 
+
+# TODO: Move this into function
 walk(unique(iris$folder), function(folder) {
   out_folder <- paste0("./output/", folder)
   if (!dir.exists(out_folder)) dir.create(out_folder, recursive = T)
@@ -213,9 +215,9 @@ walk(unique(iris$folder), function(folder) {
     filter(folder == {{ folder }}) %>%
     as.data.table()
   reps <- c(
-    biol_replicate_column_name,
-    tech_replicate_column_name,
-    plate_replicate_column_name,
+    # biol_replicate_column_name,
+    # tech_replicate_column_name,
+    # plate_replicate_column_name,
     "biorep_all"
   )
 
@@ -274,98 +276,6 @@ walk(unique(iris$folder), function(folder) {
   )
   draw(plt)
   dev.off()
-
-  # TODO: Remove this code block, it's clutter and most probably useless
-  # distances <- fold %>%
-  #   mutate(tmp = str_c(cond, biorep96, techrep96, plate_replicate, numb, sep = "___")) %>%
-  #   filter(genename != control_gene_name) %>%
-  #   pivot_wider(
-  #     id_cols = genename,
-  #     names_from = tmp,
-  #     values_from = opacity
-  #   ) %>%
-  #   as.data.frame() %>%
-  #     column_to_rownames("genename") %>%
-  #     {
-  #       log10((.) + min_colony_size_opacity)
-  #     } %>%
-  #     t() %>%
-  #       dist()
-
-  #   meta <- data.frame(tmp = rownames(as.matrix(distances))) %>%
-  #     mutate(
-  #       cond = str_split_fixed(tmp, "___", n = 10)[, 1],
-  #       biorep96 = str_split_fixed(tmp, "___", n = 10)[, 2],
-  #       techrep96 = str_split_fixed(tmp, "___", n = 10)[, 3],
-  #       plate_replicate = str_split_fixed(tmp, "___", n = 10)[, 4]
-  #     )
-
-  #   pcoa <-  distances %>%
-  #       cmdscale() %>%
-  #       as.data.frame() %>%
-  #       rownames_to_column("tmp") %>%
-  #       mutate(
-  #         cond = str_split_fixed(tmp, "___", n = 10)[, 1],
-  #         biorep96 = str_split_fixed(tmp, "___", n = 10)[, 2],
-  #         techrep96 = str_split_fixed(tmp, "___", n = 10)[, 3],
-  #         plate_replicate = str_split_fixed(tmp, "___", n = 10)[, 4]
-  #       ) %>%
-  #       as_tibble() %>%
-  #         rename(`PCo 1` = V1, `PCo 2` = V2) %>%
-  #         mutate(cond = factor(cond, levels = c(
-  #           unique(cond)[str_detect(unique(cond), "Ara")],
-  #           unique(cond)[!str_detect(unique(cond), "Ara")]
-  #         )))
-
-  #   stopifnot(all(meta$tmp == rownames(as.matrix(distances))))
-
-  #   # adonis/rep
-  #   adonis_objects <- map(
-  #     c("cond",
-  #       "cond_ara",
-  #       reps,
-  #       str_c(reps, collapse = " + ")
-  #       ), \(r){
-  #     return(adonis2(
-  #       as.formula(paste("distances ~ ", r)),
-  #       meta %>% mutate(cond_ara = ifelse(str_detect(cond, "Ara"), "ara_yes", "ara_no"))
-  #     ))
-  #   })
-
-  #   pcoa_plots <- map(
-  #     c(
-  #       "cond",
-  #       reps
-  #     ), \(r){
-  #       if (r == "techrep96" || r == "plate_replicate") {
-  #         plot <- ggplot(pcoa, aes(x = `PCo 1`, y = `PCo 2`, color = biorep96, shape = .data[[r]])) +
-  #           geom_point() +
-  #           facet_wrap(. ~ cond, nrow = 2, scales = "free") +
-  #           scale_shape_manual(values = c(
-  #             "1" = 1,
-  #             "2" = 2,
-  #             "3" = 3,
-  #             "4" = 4,
-  #             "5" = 5
-  #           )) +
-  #           labs(title = r) +
-  #           theme_presentation()
-  #       } else {
-  #         plot <- ggplot(pcoa, aes(x = `PCo 1`, y = `PCo 2`, color = .data[[r]])) +
-  #           geom_point() +
-  #           labs(title = r) +
-  #           theme_presentation()
-  #       }
-  #     }
-  #   )
-
-  #   # Save the pcoa plots using patchwork
-  #   ggsave(
-  #     plot = wrap_plots(pcoa_plots) + plot_layout(byrow = TRUE, widths = c(1, 1), heights = c(1, 1)),
-  #     filename = str_c(out_folder, "/pcoa_plots.pdf"),
-  #     width = 10,
-  #     height = 8
-  #   )
 
   # TODO: Clean this up and compare z-score analysis to Limma
   return() # for now
