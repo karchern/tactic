@@ -207,122 +207,12 @@ iris <- iris %>%
 # Save original iris object for later
 iris_orig <- iris
 
-# TODO: Move this into function
-walk(unique(iris$folder), function(folder) {
-  out_folder <- paste0("./output/", folder)
-  if (!dir.exists(out_folder)) dir.create(out_folder, recursive = T)
+###################################################
+# replication correlation QC plots + limma analysis
+###################################################
+# TODO: Move QC plots into separate function (no need for this to be here...)
 
-  fold <- iris %>%
-    filter(folder == {{ folder }}) %>%
-    as.data.table()
-  reps <- c(
-    # biol_replicate_column_name,
-    # tech_replicate_column_name,
-    # plate_replicate_column_name,
-    "biorep_all"
-  )
-
-  # # split to wide  ---------------------
-  dat_wide <- lapply(reps, function(x) {
-    form <- as.formula(paste("... ~", x))
-    # fold[[x]] <- paste0("rep", fold[[x]]) # this is achieved further up there
-    fold %>%
-      # take median values over other replicates
-      ####################################################################################
-      # !!! when x == biorep96 this will collapse the gfp replicates to a single value !!!
-      ####################################################################################
-      .[, .(opacity = median(opacity)), by = c("genename", "cond", "numb", x)] %>%
-      dcast(form, value.var = "opacity")
-  }) %>% setNames(reps)
-
-
-  # plot-n-store the rep cor plots
-  # plotReplicateCorrelation might remove some replicates due to NAs
-  cor_info <- lapply(reps, function(x) {
-    d <- plotReplicateCorrelation(dat_wide[[x]])
-    data <- d[[1]]
-    ploto <- d[[2]]
-    # This is very heavy-handed, but I cannot think of a better way to suppress the warnings due to (some) NA values here
-    # TODO: Clean this up
-    suppressWarnings(ggsave(paste0(out_folder, "/qc_", x, "_correlation_median_opacity_over_other_replicates.pdf"),
-      ploto,
-      h = 12, w = 12
-    ))
-    return(data)
-  })
-  names(cor_info) <- reps
-  # represnt biorep_all pairwise correlation matrix (one per condition) to judge the quality of the replicates
-  # color by biorep96, techrep96, plate_replicate
-
-  hm_list <- get_condition_wise_replicate_correlation_matrix(cor_info[["biorep_all"]], folder = folder)
-  pdf(file = paste0(out_folder, "/pairwise_replicate_correlation_matrix.pdf"), h = 9, w = 16)
-  plot(wrap_plots(hm_list) + plot_layout(nrow = 2, byrow = TRUE, guides = "collect"))
-  dev.off()
-
-  # plot-n-store the hierarchical clustering plots
-  lapply(reps, function(x) {
-    pdf(file = paste0(out_folder, "/qc_", x, "_clustering_median_opacity_over_other_replicates.pdf"), h = 8, w = 6)
-    plt <- plotHC(dat_wide[[x]], meta_cols = c("cond", "numb", "rep"), value_col_name = "value")
-    draw(plt)
-    dev.off()
-  })
-
-  # Also without averaging, over all replicates, with sensible color scale
-  pdf(file = paste0(out_folder, "/qc_", "clustering_median_opacity_over_other_replicates.pdf"), h = 8, w = 6)
-  plt <- plotHC(
-    fold %>%
-      filter(genename != control_gene_name) %>%
-      select(genename, cond, numb, opacity, contains("rep")),
-    meta_cols = c("cond", "numb", colnames(fold)[str_detect(colnames(fold), "rep")]),
-    pivlong = FALSE,
-    value_col_name = "opacity"
-  )
-  draw(plt)
-  dev.off()
-
-  # TODO: Clean this up and compare z-score analysis to Limma
-  dat <- dat_wide[["biorep_all"]] %>%
-    filter(numb %in% c("10010201", "10010500201", "1001001", "100105001")) %>%
-    mutate(cond = gsub("Spectet|Spectetamp", "", cond))
-
-  dat_long <- dat %>%
-    # make sure to retain values_drop_na or the plotMDS will not work
-    pivot_longer(contains("rep"), names_to = "rep", values_to = "opacity", values_drop_na = T) %>%
-    mutate(rep = gsub("ep", "", rep)) %>%
-    # This normalizes by 'biorep_all' (which are nested within the plates)
-    # This comes from Vallo, originally
-    group_by(cond, numb, rep) %>%
-    mutate(
-      fitness_median_gfp = opacity / median(opacity[genename == "gfp"]),
-      fitness_z_score_by_plate = scale(opacity)[, 1]
-    )
-
-  # Remove the ones you have information only from one condition
-  # Why? lmFit can report back logFC NA, but method='robust' will trip 'rlm' up
-  only_zeros_in_a_cond <- dat_long %>%
-    group_by(cond, genename) %>%
-    summarize(mu = mean(fitness_median_gfp, na.rm = T)) %>%
-    filter(
-      mu == 0
-    ) %>%
-    ungroup() %>%
-    select(genename) %>%
-    distinct() %>%
-    pull(genename)
-
-  print(str_c("Removing ", length(only_zeros_in_a_cond), " genes with only zeros in a condition (not sure what this does...)"))
-  dat_long <- dat_long %>% filter(!genename %in% only_zeros_in_a_cond)
-
-  fitness_long <- dat_long %>%
-    filter(genename != control_gene_name) %>%
-    select(-opacity) %>%
-    mutate(
-      fitness_median_gfp_log2 = log2(fitness_median_gfp)
-    )
-
-  res_median_gfp_log2 <- getResultsFromLinearModel(fitness_long, folder, type = "biorep_all", normalize_how = "fitness_median_gfp_log2")
-  res_z_score <- getResultsFromLinearModel(fitness_long, folder, type = "biorep_all", normalize_how = "fitness_z_score_by_plate")
-})
+rep_cor_qc_and_limma()
 
 ##################################
 # Z-score-based analysis
