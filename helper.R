@@ -497,3 +497,70 @@ get_iptg_scatter <- function(
 
   return(p)
 }
+
+get_condition_wise_replicate_correlation_matrix <- function(m) {
+  condition_wise_replicate_correlations <- m %>%
+    group_by(cond, numb) %>%
+    nest() %>%
+    mutate(pairwise_cor_matrix = map(data, \(x)  {
+      x %>%
+        # select(-genename) %>%
+        as.data.frame() %>%
+        column_to_rownames("genename") %>%
+        cor(., use = "complete.obs") %>%
+        as.data.frame() %>%
+        as.matrix()
+    }))
+
+  hm_list <- list()
+  for (i in 1:dim(condition_wise_replicate_correlations)[1]) {
+    x <- condition_wise_replicate_correlations$pairwise_cor_matrix[[i]]
+    cond <- condition_wise_replicate_correlations$cond[[i]]
+    numb <- condition_wise_replicate_correlations$numb[[i]]
+
+    fo <- folder # whatever
+    tmp <- data.frame(biorep_all = rownames(x)) %>%
+      left_join(iris %>% select(cond, numb, folder, biorep96, techrep96, plate_replicate, biorep_all) %>% distinct() %>% filter(folder == fo) %>% arrange(biorep_all) %>% mutate(biorep_all = str_c("rep", as.character(biorep_all))))
+    tmp <- tmp[tmp$cond == cond, ]
+    tmp <- tmp[tmp$numb == numb, ]
+
+    tmp <- tmp[match(tmp$biorep_all, rownames(x)), ]
+    stopifnot(all(tmp$biorep_all == rownames(x)))
+
+    a <- assign_random_color(unique(tmp$biorep96), s = 1)
+    names(a) <- unique(tmp$biorep96)
+    b <- assign_random_color(unique(tmp$techrep96), s = 23)
+    names(b) <- unique(tmp$techrep96)
+    c <- assign_random_color(unique(tmp$plate_replicate), s = 3123)
+    names(c) <- unique(tmp$plate_replicate)
+    ha <- HeatmapAnnotation(
+      biorep96 = as.character(tmp$biorep96),
+      techrep96 = as.character(tmp$techrep96),
+      plate_replicate = as.character(tmp$plate_replicate),
+      col = list(
+        "biorep96" = a,
+        "techrep96" = b,
+        "plate_replicate" = c
+      )
+    )
+
+    xx <- Heatmap(
+      x,
+      name = "correlation",
+      # col = colorRamp2(c(-1, 0, 1), c("blue", "white", "red")),
+      # colors should range from 0 to 1, white to red
+      col = colorRamp2(c(min(x), 1), c("white", "red")),
+      show_row_names = TRUE,
+      show_column_names = TRUE,
+      cluster_rows = TRUE,
+      cluster_columns = TRUE,
+      # add title
+      column_title = str_c(cond, numb),
+      top_annotation = ha
+    ) %>%
+      draw() %>%
+      grid.grabExpr()
+    hm_list[[length(hm_list) + 1]] <- xx
+  }
+  return(hm_list)
+}

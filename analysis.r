@@ -1,22 +1,14 @@
 # To install ggembl: https://git.embl.de/grp-zeller/ggembl
 pacman::p_load(data.table, tidyverse, ggrepel, GGally, scales, ComplexHeatmap, limma, Biobase, cowplot, janitor, yaml, RColorBrewer, vegan, patchwork, ggembl, circlize, RColorBrewer)
-options(datatable.print.nrows = 20)
 source("./helper.R")
-
-# Load configuration YAML file
-# This file specifies general parameters assumed in this script, such as thresholds for analysis, negative control gene name etc
-
-# Example usage
 load_yaml_to_global("./input/config.yaml")
 # This gets loaded from the yaml file
 names(cond_color_vector) <- cond_color_vector_levels
-
 
 # Specify replicate information
 # Experimental design can be complicated, with biological replicates and nested technical replicates.
 # Below, I implement sanity checks that specify the expected relationship/number of replicates in the experiment.
 # This will be used for sanity checks down the line
-
 
 # biological replicates
 biol_replicate_column_name <- "biorep96"
@@ -253,76 +245,11 @@ walk(unique(iris$folder), function(folder) {
     return(data)
   })
   names(cor_info) <- reps
+
   # represnt biorep_all pairwise correlation matrix (one per condition) to judge the quality of the replicates
   # color by biorep96, techrep96, plate_replicate
-  condition_wise_replicate_correlations <- cor_info[["biorep_all"]] %>%
-    group_by(cond, numb) %>%
-    nest() %>%
-    mutate(pairwise_cor_matrix = map(data, \(x)  {
-      x %>%
-        # select(-genename) %>%
-        as.data.frame() %>%
-        column_to_rownames("genename") %>%
-        cor(., use = "complete.obs") %>%
-        as.data.frame() %>%
-        as.matrix()
-      # rownames_to_column("genename")
-      # pivot_longer(-genename, names_to = "genename2", values_to = "correlation")
-      # identity()
-    }))
 
-  # TODO: Put this into a function
-  hm_list <- list()
-  for (i in 1:dim(condition_wise_replicate_correlations)[1]) {
-    x <- condition_wise_replicate_correlations$pairwise_cor_matrix[[i]]
-    cond <- condition_wise_replicate_correlations$cond[[i]]
-    numb <- condition_wise_replicate_correlations$numb[[i]]
-
-    fo <- folder # whatever
-    tmp <- data.frame(biorep_all = rownames(x)) %>%
-      left_join(iris %>% select(cond, numb, folder, biorep96, techrep96, plate_replicate, biorep_all) %>% distinct() %>% filter(folder == fo) %>% arrange(biorep_all) %>% mutate(biorep_all = str_c("rep", as.character(biorep_all))))
-    tmp <- tmp[tmp$cond == cond, ]
-    tmp <- tmp[tmp$numb == numb, ]
-
-    tmp <- tmp[match(tmp$biorep_all, rownames(x)), ]
-    stopifnot(all(tmp$biorep_all == rownames(x)))
-
-    a <- assign_random_color(unique(tmp$biorep96), s = 1)
-    names(a) <- unique(tmp$biorep96)
-    b <- assign_random_color(unique(tmp$techrep96), s = 23)
-    names(b) <- unique(tmp$techrep96)
-    c <- assign_random_color(unique(tmp$plate_replicate), s = 3123)
-    names(c) <- unique(tmp$plate_replicate)
-    ha <- HeatmapAnnotation(
-      biorep96 = as.character(tmp$biorep96),
-      techrep96 = as.character(tmp$techrep96),
-      plate_replicate = as.character(tmp$plate_replicate),
-      col = list(
-        "biorep96" = a,
-        "techrep96" = b,
-        "plate_replicate" = c
-      )
-    )
-
-    xx <- Heatmap(
-      x,
-      name = "correlation",
-      # col = colorRamp2(c(-1, 0, 1), c("blue", "white", "red")),
-      # colors should range from 0 to 1, white to red
-      col = colorRamp2(c(min(x), 1), c("white", "red")),
-      show_row_names = TRUE,
-      show_column_names = TRUE,
-      cluster_rows = TRUE,
-      cluster_columns = TRUE,
-      # add title
-      column_title = str_c(cond, numb),
-      top_annotation = ha
-    ) %>%
-      draw() %>%
-      grid.grabExpr()
-    hm_list[[length(hm_list) + 1]] <- xx
-  }
-
+  hm_list <- get_condition_wise_replicate_correlation_matrix(cor_info[["biorep_all"]])
   pdf(file = paste0(out_folder, "/pairwise_replicate_correlation_matrix.pdf"), h = 9, w = 16)
   plot(wrap_plots(hm_list) + plot_layout(nrow = 2, byrow = TRUE, guides = "collect"))
   dev.off()
