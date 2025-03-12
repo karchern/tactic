@@ -4,7 +4,10 @@
 
 z_score_cutoff: 1
 min_colony_size_opacity: 12000  # too small a colony
-iris_input_folder: './input/iris_files/' 
+iris_input_folder: '/Users/karcher/tactic/input/iris_files/' 
+out_folder: '/Users/karcher/tactic/output' 
+visualize_only_control_and_treatment_conditions: True
+effect_size_name_for_non_limma_analyis: ec_opacity_z_scored_by_plate_including_gfp
 # variables contained in the iris filenames separated by '-'
 column_names:
   - cond # cond: Combination of drugs adiminstred (antibiotics; inducers)
@@ -13,4 +16,21 @@ column_names:
   - tail # tail: system_PLATEreplicate (third replicate in .docx)
          ## For example, SpectetIPTG-100101-5_1.JPG: tail 5_1: system 5, PLATEreplicate 1
 control_gene_name: 'gfp'
-
+cond_color_vector_levels:
+  - Spectet
+  - SpectetAra
+  - SpectetAraIPTG
+  - SpectetIPTG
+  - Spectetamp
+  - SpectetampAra
+  - SpectetampAraIPTG
+  - SpectetampIPTG
+cond_color_vector:
+  - "#66C2A5"  # Spectet
+  - "#FC8D62"  # SpectetAra
+  - "#8DA0CB"  # SpectetAraIPTG
+  - "#E78AC3"  # SpectetIPTG
+  - "#A6D854"  # Spectetamp
+  - "#FFD92F"  # SpectetampAra
+  - "#E5C494"  # SpectetampAraIPTG
+  - "#B3B3B3"  # SpectetampIPTG

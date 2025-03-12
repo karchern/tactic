@@ -157,10 +157,12 @@ plotReplicateCorrelation <- function(dat) {
 
   has_zero <- apply(dat[, 4:ncol(dat)] == 0, 1, sum, na.rm = T) != 0
 
-  dat[!has_zero] %>%
+  dat_o <- dat[!has_zero] %>%
     # filter(`rep1` > 0 & `rep2` > 0)  %>%
 
-    mutate(across(is.numeric, ~ log10(.x + min_colony_size_opacity))) %>%
+    mutate(across(is.numeric, ~ log10(.x + min_colony_size_opacity)))
+
+  plot_o <- dat_o %>%
     {
       ggpairs(.,
         columns = 4:ncol(.), aes(color = cond, alpha = 0.3),
@@ -172,10 +174,11 @@ plotReplicateCorrelation <- function(dat) {
         scale_color_brewer(palette = "Dark2") +
         theme_bw()
     }
+  return(list(dat_o, plot_o))
 }
 
 
-plotHC <- function(dat) {
+plotHC <- function(dat, meta_cols = NULL, pivlong = TRUE, value_col_name = NULL) {
   # plot hierachical clustering
 
   # remove factor levels with all NA's ------
@@ -190,16 +193,25 @@ plotHC <- function(dat) {
     select(contains("rep")) %>%
     colnames()
 
+  # TODO: Fix deprecationWarning here
   dat <- select(dat, !cols_to_remove)
   # ------------------------------------
 
   # make data wider still
   dat_hc <- dat %>%
-    pivot_longer(cols = 4:ncol(.), names_to = "rep") %>%
+    # super ugly but whtaever
+    {
+      if (pivlong) {
+        (.) %>% pivot_longer(cols = (4):ncol(.), names_to = "rep")
+      } else {
+        (.)
+      }
+    } %>%
     pivot_wider(
       id_cols = genename,
-      names_from = c(cond, numb, rep),
-      values_from = value
+      names_from = all_of(meta_cols),
+      # names_from = c(cond, numb, biorep96, techrep96, plate_replicate),
+      values_from = all_of(value_col_name)
     ) %>%
     setDT()
 
@@ -211,7 +223,7 @@ plotHC <- function(dat) {
   meta <- data.frame(foo = p) %>%
     separate_wider_delim(
       foo, "_",
-      names = c("cond", "conc", "rep")
+      names = meta_cols
     ) %>%
     data.frame(., row.names = p)
 
@@ -229,17 +241,29 @@ plotHC <- function(dat) {
       setNames(varname)
   }
 
-  annCols <- list(
-    cond = getBrewerColors("cond", "Dark2"),
-    conc = getBrewerColors("conc", "Accent"),
-    rep = getBrewerColors("rep", "Paired")
+  all_c_map_names <- c(
+    "Dark2",
+    "Accent",
+    "Paired",
+    "Pastel1",
+    "Pastel2",
+    "Set1",
+    "Set2",
+    "Set3"
   )
-
-  # m[is.na(m)] = 0 - thr
-
+  annCols <- map2(
+    meta_cols,
+    1:length(meta_cols),
+    \(x, y) {
+      getBrewerColors(x, all_c_map_names[y])
+    }
+    # ~
+  )
+  names(annCols) <- meta_cols
   pheatmap(
+    # TODO
     log10(m + min_colony_size_opacity), # assume multiplicative errors
-    annotation_col = select(meta, rep, conc, cond),
+    annotation_col = select(meta, all_of(meta_cols)),
     annotation_colors = annCols,
     show_colnames = T,
     fontsize_row = 2,
@@ -251,47 +275,21 @@ plotHC <- function(dat) {
 }
 
 
-getResultsFromLinearModel <- function(dat, folder, plot_pca_qc = T) {
-  x <- "biorep_all"
-
-  dat <- dat %>%
-    # TODO: This looks hard-coded and dangerous
-    filter(numb %in% c("10010201", "10010500201", "1001001", "100105001")) %>%
-    mutate(cond = gsub("Spectet|Spectetamp", "", cond))
-
-
-  dat_long <- dat %>%
-    # make sure to retain values_drop_na or the plotMDS will not work
-    pivot_longer(contains("rep"), names_to = "rep", values_to = "opacity", values_drop_na = T) %>%
-    mutate(rep = gsub("ep", "", rep)) %>%
-    group_by(cond, numb, rep) %>%
-    mutate(
-      fitness = opacity / median(opacity[genename == control_gene_name])
-    )
-
-  # Remove the ones you have information only from one condition
-  # Why? lmFit can report back logFC NA, but method='robust' will trip 'rlm' up
-  only_zeros_in_a_cond <- dat_long %>%
-    group_by(cond, genename) %>%
-    summarize(mu = mean(fitness, na.rm = T)) %>%
-    filter(mu == 0) %>%
-    pull(genename)
-
-  dat_long <- dat_long %>% filter(!genename %in% only_zeros_in_a_cond)
-
-  fitness <- dat_long %>%
-    filter(genename != control_gene_name) %>%
-    select(-opacity) %>%
+getResultsFromLinearModel <- function(
+    dat,
+    folder,
+    type = "biorep_all",
+    plot_pca_qc = T,
+    normalize_how = NULL) {
+  fitness <- dat %>%
     pivot_wider(
       id_cols = genename,
       names_from = c(cond, numb, rep),
       values_from = fitness
     ) %>%
     setDT()
-
   m <- fitness[, -1] %>%
-    as.matrix() %>%
-    log2()
+    as.matrix()
   genes <- fitness[["genename"]]
   rownames(m) <- genes
   f <- data.frame(genes)
@@ -319,7 +317,6 @@ getResultsFromLinearModel <- function(dat, folder, plot_pca_qc = T) {
   design <- model.matrix(~ 0 + cond, data = pData(eset))
   colnames(design) <- gsub("cond", "", colnames(design))
   cm <- makeContrasts(ara = AraIPTG - IPTG, levels = design)
-
   fit <- lmFit(eset, method = "robust", design, maxit = 10000)
   fit2 <- contrasts.fit(fit, cm)
   fit2 <- eBayes(fit2)
@@ -331,15 +328,172 @@ getResultsFromLinearModel <- function(dat, folder, plot_pca_qc = T) {
       ggplot(., aes(log_fc, -log10(adj_p_val))) +
         geom_point(pch = 21, col = "grey30", fill = "grey60") +
         ggrepel::geom_text_repel(
-          data = filter(., adj_p_val < 0.01 & abs(log_fc) > 0.2 | abs(log_fc) > 0.3),
-          aes(label = genes)
+          data = filter(., adj_p_val < 0.01),
+          aes(label = genes), max.overlaps = Inf
         ) +
         labs(x = expression(log[2] * "FC"), y = expression(-log[10] * "(adj p-val)")) +
         theme_cowplot()
     }
 
-  ggsave(paste0("./output/", folder, "/res_volcano_", x, ".pdf"))
+  ggsave(paste0("./output/", folder, "/res_volcano_", x, "__normalization_method_", normalize_how, ".pdf"))
 
-  fwrite(res, paste0("./output/", folder, "/res_", x, ".csv"))
+  fwrite(res, paste0("./output/", folder, "/res_", x, "__normalization_method_", normalize_how, ".csv"))
   return(res)
+}
+
+get_opacity_measurement_plots <- function(
+    iris,
+    control_gene_name = control_gene_name,
+    value_to_plot = NULL,
+    output_name_base = NULL,
+    mi,
+    ma,
+    gtitle) {
+  gfp_controls_plot <- ggplot(
+    data = iris %>%
+      filter(genename == control_gene_name), aes(x = numb, y = .data[[value_to_plot]], color = cond)
+  ) +
+    geom_hline(yintercept = 0, linetype = "longdash", colour = "grey", alpha = 0.35) +
+    geom_hline(yintercept = 25000, linetype = "longdash", colour = "grey", alpha = 0.35) +
+    geom_hline(yintercept = 50000, linetype = "longdash", colour = "grey", alpha = 0.35) +
+    geom_hline(yintercept = 75000, linetype = "longdash", colour = "grey", alpha = 0.35) +
+    geom_hline(yintercept = 100000, linetype = "longdash", colour = "grey", alpha = 0.35) +
+    geom_hline(yintercept = 125000, linetype = "longdash", colour = "grey", alpha = 0.35) +
+    geom_hline(yintercept = 150000, linetype = "longdash", colour = "grey", alpha = 0.35) +
+    geom_boxplot() +
+    geom_text(
+      data = iris %>%
+        filter(genename == control_gene_name) %>%
+        group_by(
+          cond, numb, folder_plate_id, colony_on_edge
+        ) %>%
+        summarize(
+          {{ value_to_plot }} := median(.data[[value_to_plot]])
+        ), aes(label = .data[[value_to_plot]]), y = max(iris[[value_to_plot]]), size = 3
+    ) +
+    theme_presentation() +
+    facet_grid(folder_plate_id ~ colony_on_edge) +
+    theme(
+      axis.text.x = element_text(angle = 45, hjust = 1),
+      strip.text.y = element_text(angle = 0)
+    ) +
+    scale_color_manual(values = cond_color_vector) +
+    ylim(c(mi, ma * 1.2))
+  ggsave(
+    plot = gfp_controls_plot + ggtitle(str_c(gtitle, " (only gfp controls)")),
+    filename = str_c("./output/", output_name_base, "_gfp_controls.pdf"),
+    width = 4 * sqrt(length(unique(iris$numb))),
+    height = 18
+  )
+
+  all_values_plot <- ggplot(
+    data = iris, aes(x = numb, y = .data[[value_to_plot]], color = cond)
+  ) +
+    # geom_hline(yintercept = 0, linetype = "longdash", colour = "grey", alpha = 0.35) +
+    # geom_hline(yintercept = 25000, linetype = "longdash", colour = "grey", alpha = 0.35) +
+    # geom_hline(yintercept = 50000, linetype = "longdash", colour = "grey", alpha = 0.35) +
+    # geom_hline(yintercept = 75000, linetype = "longdash", colour = "grey", alpha = 0.35) +
+    # geom_hline(yintercept = 100000, linetype = "longdash", colour = "grey", alpha = 0.35) +
+    # geom_hline(yintercept = 125000, linetype = "longdash", colour = "grey", alpha = 0.35) +
+    # geom_hline(yintercept = 150000, linetype = "longdash", colour = "grey", alpha = 0.35) +
+    geom_boxplot() +
+    geom_text(
+      data = iris %>%
+        group_by(
+          cond, numb, folder_plate_id, colony_on_edge
+        ) %>%
+        summarize(
+          {{ value_to_plot }} := median(.data[[value_to_plot]])
+        ), aes(label = .data[[value_to_plot]]), y = max(iris[[value_to_plot]]), size = 3
+    ) +
+    theme_presentation() +
+    facet_grid(folder_plate_id ~ colony_on_edge) +
+    theme(
+      axis.text.x = element_text(angle = 45, hjust = 1),
+      strip.text.y = element_text(angle = 0)
+    ) +
+    scale_color_manual(values = cond_color_vector) +
+    ylim(c(mi, ma * 1.2))
+
+  ggsave(
+    plot = all_values_plot + ggtitle(str_c(gtitle)),
+    filename = str_c("./output/", output_name_base, ".pdf"),
+    width = 4 * sqrt(length(unique(iris$numb))),
+    height = 18
+  )
+}
+
+
+assign_random_color <- function(n, s) {
+  library(RColorBrewer)
+
+  # Set seed for reproducibility
+  set.seed(s)
+
+  # Get the number of unique values in n
+  unique_n <- unique(n)
+  num_colors <- length(unique_n)
+
+  # Generate a set of colors from RColorBrewer's Set3 palette
+  colors <- suppressWarnings(brewer.pal(12, "Set3"))
+  colors <- sample(colors, num_colors)
+
+  # Return the vector of colors
+  return(colors)
+}
+
+get_iptg_scatter <- function(
+    iris_hits_input,
+    effect_size_names = c("effect_size_iptghigh", "effect_size_iptglow"),
+    plot_means = NULL,
+    nudge_x = 0) {
+  if (plot_means) {
+    effect_size_names <- str_c(effect_size_names, "_mean")
+  }
+
+  p <- iptg_high_low_plot <- ggplot() +
+    geom_abline(
+      intercept = 0, slope = 1, linetype = "dashed", alpha = 0.3
+    ) +
+    geom_point(
+      data = iris_hits_input,
+      aes(x = .data[[effect_size_names[1]]], y = .data[[effect_size_names[2]]], color = hit, alpha = hit_alpha)
+    ) +
+    geom_text(
+      data = iris_wide %>%
+        group_by(folder) %>%
+        summarize(co = round(cor(effect_size_iptghigh, effect_size_iptglow), 3)),
+      aes(x = min(iris_wide$effect_size_iptghigh), y = max(iris_wide$effect_size_iptglow), label = co), size = 3, nudge_x = nudge_x
+    ) +
+    geom_text(
+      data = iris_hits %>%
+        group_by(folder, hit) %>%
+        tally() %>%
+        group_by(folder) %>%
+        mutate(
+          # y_offset = seq(1, 4, length.out = n())
+          y_offset = case_when(
+            hit == "both" ~ 1,
+            hit == "high" ~ 2,
+            hit == "low" ~ 3,
+            hit == "none" ~ 4
+          )
+        ) %>%
+        arrange(folder, hit),
+      aes(x = min(iris_wide$effect_size_iptghigh), y = max(iris_wide$effect_size_iptglow) - y_offset, label = n, color = hit), nudge_x = nudge_x, size = 3
+    ) +
+    theme_presentation() +
+    facet_wrap(. ~ folder) +
+    scale_color_manual(values = hit_color_mapping) +
+    scale_alpha_continuous(guide = "none", range = c(0.15, 0.5)) +
+    xlab("Effect size (IPTG: High)") +
+    ylab("Effect size (IPTG: Low)") +
+    ggtitle("Effect sizes > 0: relatively large colony upon retron/toxin induction\nEffect sizes < 0: relatively small colony upon retron/toxin induction") +
+    # Make title font smaller
+    theme(plot.title = element_text(size = 12)) +
+    xlim(c(min(iris_wide$effect_size_iptghigh, iris_wide$effect_size_iptglow), max(iris_wide$effect_size_iptghigh, iris_wide$effect_size_iptglow))) +
+    ylim(c(min(iris_wide$effect_size_iptghigh, iris_wide$effect_size_iptglow), max(iris_wide$effect_size_iptghigh, iris_wide$effect_size_iptglow))) +
+    NULL
+
+  return(p)
 }
