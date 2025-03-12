@@ -139,8 +139,8 @@ loadIrisFiles <- function(folder) {
 plotReplicateCorrelation <- function(dat) {
   # remove factor levels with all NA's ------
   percentage_of_nas <- dat %>%
-    select(contains("rep"), cond) %>%
     group_by(cond) %>%
+    select(contains("rep"), cond) %>%
     summarize(across(everything(), ~ mean(is.na(.))))
 
   percentage_of_nas[percentage_of_nas == 1] <- NA
@@ -498,7 +498,7 @@ get_iptg_scatter <- function(
   return(p)
 }
 
-get_condition_wise_replicate_correlation_matrix <- function(m) {
+get_condition_wise_replicate_correlation_matrix <- function(m, folder = NULL) {
   condition_wise_replicate_correlations <- m %>%
     group_by(cond, numb) %>%
     nest() %>%
@@ -520,12 +520,15 @@ get_condition_wise_replicate_correlation_matrix <- function(m) {
 
     fo <- folder # whatever
     tmp <- data.frame(biorep_all = rownames(x)) %>%
-      left_join(iris %>% select(cond, numb, folder, biorep96, techrep96, plate_replicate, biorep_all) %>% distinct() %>% filter(folder == fo) %>% arrange(biorep_all) %>% mutate(biorep_all = str_c("rep", as.character(biorep_all))), by = "biorep_all")
+      left_join(iris %>% select(cond, numb, folder, biorep96, techrep96, plate_replicate, biorep_all) %>% distinct() %>% filter(folder == fo) %>% arrange(biorep_all), by = "biorep_all")
     tmp <- tmp[tmp$cond == cond, ]
     tmp <- tmp[tmp$numb == numb, ]
-
     tmp <- tmp[match(tmp$biorep_all, rownames(x)), ]
-    stopifnot(all(tmp$biorep_all == rownames(x)))
+    # stopifnot(all(tmp$biorep_all == rownames(x)))
+    if (!all(tmp$biorep_all == rownames(x))) {
+      print("Some bioreps are missing, entering debug mode")
+      browser()
+    }
 
     a <- assign_random_color(unique(tmp$biorep96), s = 1)
     names(a) <- unique(tmp$biorep96)

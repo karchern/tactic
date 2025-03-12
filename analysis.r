@@ -127,18 +127,19 @@ iris <- lapply(folders, loadIrisFiles) %>%
   mutate(tail = gsub(".JPG.iris", "", tail)) %>%
   separate(tail, c("system_num", "plate_replicate")) %>% # This line generates the 'plate replicate'
   rename(row1536 = row, col1536 = column) %>%
-  left_join(fread("./input/maps/systems.csv", colClasses = "character"))
+  left_join(fread("./input/maps/systems.csv", colClasses = "character"), by = "system_num")
 
-iris <- left_join(map96to384quadrants, map384to1536quadrants, relationship = "many-to-many") %>%
+iris <- left_join(map96to384quadrants, map384to1536quadrants, relationship = "many-to-many", by = "plt384") %>%
   add384RowAndCol() %>%
   add1536RowAndCol() %>%
-  right_join(iris) %>%
+  right_join(iris, by = c("row1536", "col1536")) %>%
   as_tibble() %>%
-  left_join(read96wMaps()) %>%
+  left_join(read96wMaps(), by = c("plt96", "biorep96", "row96", "col96")) %>%
   mutate(
     colony_id  = interaction(plt1536, row1536, col1536),
     biorep_all = interaction(across(c(biol_replicate_column_name, tech_replicate_column_name, plate_replicate_column_name))) %>% as.numeric() %>% str_pad(2, pad = "0")
   ) %>%
+  mutate(across(contains("rep"), \(x) paste0("rep", x))) %>%
   mutate(plate_id = interaction(folder, cond, plate_replicate, numb)) %>%
   setDT() %>%
   as_tibble()
@@ -149,7 +150,7 @@ iris <- iris %>%
     cond, numb, genename, system_desc, opacity, colony_id, folder, row1536, col1536, plate_id,
     all_of(c(biol_replicate_column_name, tech_replicate_column_name, plate_replicate_column_name, "biorep_all"))
   ) %>%
-  mutate(across(contains("rep"), as.numeric)) %>%
+  # mutate(across(contains("rep"), as.numeric)) %>%
   # TODO: Rename biol_repliate_column_name to bio_rep and tech_replicate_column_name to tech_rep
   as_tibble()
 
@@ -208,6 +209,7 @@ iris_orig <- iris
 
 # TODO: Move this into function
 walk(unique(iris$folder), function(folder) {
+  print(folder)
   out_folder <- paste0("./output/", folder)
   if (!dir.exists(out_folder)) dir.create(out_folder, recursive = T)
 
@@ -224,7 +226,7 @@ walk(unique(iris$folder), function(folder) {
   # # split to wide  ---------------------
   dat_wide <- lapply(reps, function(x) {
     form <- as.formula(paste("... ~", x))
-    fold[[x]] <- paste0("rep", fold[[x]])
+    # fold[[x]] <- paste0("rep", fold[[x]]) # this is achieved further up there
     fold %>%
       # take median values over other replicates
       ####################################################################################
@@ -236,6 +238,7 @@ walk(unique(iris$folder), function(folder) {
 
 
   # plot-n-store the rep cor plots
+  # plotReplicateCorrelation might remove some replicates due to NAs
   cor_info <- lapply(reps, function(x) {
     d <- plotReplicateCorrelation(dat_wide[[x]])
     data <- d[[1]]
@@ -247,11 +250,10 @@ walk(unique(iris$folder), function(folder) {
     return(data)
   })
   names(cor_info) <- reps
-
   # represnt biorep_all pairwise correlation matrix (one per condition) to judge the quality of the replicates
   # color by biorep96, techrep96, plate_replicate
 
-  hm_list <- get_condition_wise_replicate_correlation_matrix(cor_info[["biorep_all"]])
+  hm_list <- get_condition_wise_replicate_correlation_matrix(cor_info[["biorep_all"]], folder = folder)
   pdf(file = paste0(out_folder, "/pairwise_replicate_correlation_matrix.pdf"), h = 9, w = 16)
   plot(wrap_plots(hm_list) + plot_layout(nrow = 2, byrow = TRUE, guides = "collect"))
   dev.off()
