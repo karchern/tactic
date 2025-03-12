@@ -86,6 +86,7 @@ if (length(unique(table(bio_rep_vector))) != 1) {
   num_biol_repl <- length(unique(bio_rep_vector))
 }
 
+# TODO: I think what this table is printing is at the least misleading, if not completely wrong.
 print("Overall, I'm seeing this:")
 tmp <- rep_information %>%
   group_by(plate_number, bio_rep) %>%
@@ -137,7 +138,7 @@ iris <- left_join(map96to384quadrants, map384to1536quadrants, relationship = "ma
   left_join(read96wMaps(), by = c("plt96", "biorep96", "row96", "col96")) %>%
   mutate(
     colony_id  = interaction(plt1536, row1536, col1536),
-    biorep_all = interaction(across(c(biol_replicate_column_name, tech_replicate_column_name, plate_replicate_column_name))) %>% as.numeric() %>% str_pad(2, pad = "0")
+    biorep_all = interaction(across(all_of(c(biol_replicate_column_name, tech_replicate_column_name, plate_replicate_column_name)))) %>% as.numeric() %>% str_pad(2, pad = "0")
   ) %>%
   mutate(across(contains("rep"), \(x) paste0("rep", x))) %>%
   mutate(plate_id = interaction(folder, cond, plate_replicate, numb)) %>%
@@ -206,10 +207,8 @@ iris <- iris %>%
 # Save original iris object for later
 iris_orig <- iris
 
-
 # TODO: Move this into function
 walk(unique(iris$folder), function(folder) {
-  print(folder)
   out_folder <- paste0("./output/", folder)
   if (!dir.exists(out_folder)) dir.create(out_folder, recursive = T)
 
@@ -243,10 +242,12 @@ walk(unique(iris$folder), function(folder) {
     d <- plotReplicateCorrelation(dat_wide[[x]])
     data <- d[[1]]
     ploto <- d[[2]]
-    ggsave(paste0(out_folder, "/qc_", x, "_correlation_median_opacity_over_other_replicates.pdf"),
+    # This is very heavy-handed, but I cannot think of a better way to suppress the warnings due to (some) NA values here
+    # TODO: Clean this up
+    suppressWarnings(ggsave(paste0(out_folder, "/qc_", x, "_correlation_median_opacity_over_other_replicates.pdf"),
       ploto,
       h = 12, w = 12
-    )
+    ))
     return(data)
   })
   names(cor_info) <- reps
@@ -361,16 +362,16 @@ edge_correction_factor_per_plate <- iris %>%
   group_by(
     cond, numb, folder, plate_replicate, colony_on_edge
   ) %>%
-  summarize(opacity = median(opacity)) %>%
+  summarize(opacity = median(opacity), .groups = "drop_last") %>%
   pivot_wider(
     id_cols = c(cond, numb, folder, plate_replicate),
     names_from = colony_on_edge,
     values_from = opacity
   ) %>%
   mutate(edge_correction_factor = `TRUE` / `FALSE`) %>%
-  select(folder, plate_replicate, edge_correction_factor)
+  select(folder, cond, numb, plate_replicate, edge_correction_factor)
 iris <- iris %>%
-  left_join(edge_correction_factor_per_plate) %>%
+  left_join(edge_correction_factor_per_plate, by = c("cond", "numb", "folder", "plate_replicate")) %>%
   mutate(
     opacity_edge_corrected = ifelse(
       colony_on_edge,
@@ -390,24 +391,83 @@ iris <- iris %>%
 iris <- iris %>%
   select(-opacity) %>% # We have edge-controlled opacity now, so we dont need this anymore
   group_by(
-    folder, cond, numb, folder_plate_id,
+    folder, cond, numb, folder_plate_id
   ) %>%
   mutate(
     # Get z-scores of edge-corrected opacity values by *plate* (this should account for plate effects)
     ec_opacity_z_scored_by_plate_including_gfp = round(scale(opacity_edge_corrected)[, 1], 3),
     # Also get ec_opacity corrected by a plates (median) gfp opacity - I think this should give us very similar results in the end
-    ec_opacity_corrected_by_gfp = round(opacity_edge_corrected / median(opacity_edge_corrected[genename == control_gene_name]), 3)
+    ec_opacity_corrected_by_plate_using_gfp = round(opacity_edge_corrected / median(opacity_edge_corrected[genename == control_gene_name]), 3)
+  ) %>%
+  group_by(
+    folder, cond, numb, folder_plate_id, biorep96
+  ) %>%
+  mutate(
+    # Get z-scores of edge-corrected opacity values by *plate* (this should account for plate effects)
+    ec_opacity_z_scored_by_plate_and_biorep_including_gfp = round(scale(opacity_edge_corrected)[, 1], 3),
+    # Also get ec_opacity corrected by a plates (median) gfp opacity - I think this should give us very similar results in the end
+    ec_opacity_corrected_by_plate_and_biorep_using_gfp = round(opacity_edge_corrected / median(opacity_edge_corrected[genename == control_gene_name]), 3)
   )
 
 # Visualize the edge-corrected and normalized values
 value_tp <- "ec_opacity_z_scored_by_plate_including_gfp"
 mi <- min(iris[[value_tp]])
 ma <- max(iris[[value_tp]])
-get_opacity_measurement_plots(iris, "gfp", value_tp, "ec_opacity_z_scored_by_plate_including_gfp", mi, ma, "Z-scored, edge-corrected opacity values")
-value_tp <- "ec_opacity_corrected_by_gfp"
+get_opacity_measurement_plots(iris, "gfp", value_tp, "ec_opacity_z_scored_by_plate_including_gfp", mi, ma, "Z-scored, edge-corrected opacity values (by plate)")
+value_tp <- "ec_opacity_z_scored_by_plate_and_biorep_including_gfp"
 mi <- min(iris[[value_tp]])
 ma <- max(iris[[value_tp]])
-get_opacity_measurement_plots(iris, "gfp", value_tp, "ec_opacity_corrected_by_gfp", mi, ma, "edge-corrected opacity values\nnormalized by plate-wise median gfp")
+get_opacity_measurement_plots(iris, "gfp", value_tp, "ec_opacity_z_scored_by_plate_and_biorep_including_gfp", mi, ma, "Z-scored, edge-corrected opacity values (by plate and biorep)")
+value_tp <- "ec_opacity_corrected_by_plate_using_gfp"
+mi <- min(iris[[value_tp]])
+ma <- max(iris[[value_tp]])
+get_opacity_measurement_plots(iris, "gfp", value_tp, "ec_opacity_corrected_by_plate_using_gfp", mi, ma, "edge-corrected opacity values\nnormalized by plate-wise median gfp")
+value_tp <- "ec_opacity_corrected_by_plate_and_biorep_using_gfp"
+mi <- min(iris[[value_tp]])
+ma <- max(iris[[value_tp]])
+get_opacity_measurement_plots(iris, "gfp", value_tp, "ec_opacity_corrected_by_plate_using_gfp", mi, ma, "edge-corrected opacity values\nnormalized by plate- and biorep-wise median gfp")
+
+p <- iris %>%
+  ungroup() %>%
+  select(
+    folder,
+    ec_opacity_z_scored_by_plate_including_gfp,
+    # ec_opacity_corrected_by_plate_using_gfp,
+    ec_opacity_z_scored_by_plate_and_biorep_including_gfp
+    # ec_opacity_corrected_by_plate_and_biorep_using_gfp
+  ) %>%
+  rename(
+    `ec_opacity_z_scored_by\nplate` = ec_opacity_z_scored_by_plate_including_gfp,
+    # `ec_opacity_corrected_by\nplate_using_gfp` = ec_opacity_corrected_by_plate_using_gfp,
+    `ec_opacity_z_scored_by\nplate_and_biorep` = ec_opacity_z_scored_by_plate_and_biorep_including_gfp,
+    # `ec_opacity_corrected_by\nplate_and_biorep_using_gfp` = ec_opacity_corrected_by_plate_and_biorep_using_gfp
+  ) %>%
+  ggplot() +
+  geom_point(aes(
+    x = `ec_opacity_z_scored_by\nplate`,
+    y = `ec_opacity_z_scored_by\nplate_and_biorep`
+  ), alpha = 0.05) +
+  facet_wrap(
+    . ~ folder,
+    ncol = 2
+  ) +
+  geom_abline(
+    intercept = 0,
+    slope = 1,
+    linetype = "dashed",
+    alpha = 0.3
+  ) +
+  theme_presentation() +
+  xlab("Normalized z-score differences (i.e. effect size)\nby PLATE") +
+  ylab("Normalized z-score differences (i.e. effect size)\nby PLATE and BIOREP")
+
+ggsave(
+  plot = p,
+  filename = str_c(out_folder, "/", "normalized_effect_sizes_comparison.pdf"),
+  width = 5.5,
+  height = 6.5,
+  dpi = 300
+)
 
 iris <- iris %>%
   # ! remove the control gene from the analysis
@@ -423,7 +483,8 @@ iris <- iris %>%
 if (any(is.na(iris$iptgconc))) {
   stop("iris contains NAs in iptgconc. This should never happen. This probably means something in your encoding changed. Please talk to Nic.")
 }
-iris %>%
+
+iris <- iris %>%
   group_by(
     folder, iptgconc, genename, biorep_all
   ) %>%
@@ -451,7 +512,7 @@ iris_wide <- iris %>%
   pivot_wider(
     id_cols = c(folder, genename, biorep_all),
     names_from = cond,
-    values_from = .data[[effect_size_name_for_non_limma_analyis]] # any of: 'ec_opacity_z_scored_by_plate_including_gfp', 'ec_opacity_corrected_by_gfp', ""
+    values_from = all_of(effect_size_name_for_non_limma_analyis) # any of: 'ec_opacity_z_scored_by_plate_including_gfp', 'ec_opacity_corrected_by_plate_using_gfp', ""
   ) %>%
   mutate(
     effect_size_iptghigh = SpectetAraIPTGHigh - SpectetIPTGHigh,
@@ -470,7 +531,8 @@ iris_hits <- iris_wide %>%
     effect_size_iptglow_mean = mean(effect_size_iptglow, na.rm = T),
     effect_size_iptglow_sd = sd(effect_size_iptglow, na.rm = T),
     lower_iptglow = effect_size_iptglow_mean - effect_size_iptglow_sd,
-    upper_iptglow = effect_size_iptglow_mean + effect_size_iptglow_sd
+    upper_iptglow = effect_size_iptglow_mean + effect_size_iptglow_sd,
+    .groups = "drop_last"
   )
 
 if (any(is.na(iris_hits))) {
@@ -535,19 +597,22 @@ ggsave(
   height = 4.875
 )
 
-iptg_high_low_plot_all_measurements <- get_iptg_scatter(
-  iris_hits_input = iris_wide %>%
-    left_join(iris_hits) %>%
-    arrange(desc(hit)),
-  plot_means = FALSE
-)
+## I'm disabling this for now since it's throwing warnings about missing values
+## These come from the low colony size filter above
+## This plot is anyway nto that useful, I think.
+# iptg_high_low_plot_all_measurements <- get_iptg_scatter(
+#   iris_hits_input = iris_wide %>%
+#     left_join(iris_hits, by = c("folder", "genename")) %>%
+#     arrange(desc(hit)),
+#   plot_means = FALSE
+# )
 
-ggsave(
-  plot = iptg_high_low_plot_all_measurements,
-  filename = str_c(out_folder, "/iptg_high_low_scatter_all_measurements_", effect_size_name_for_non_limma_analyis, ".pdf"),
-  width = 8,
-  height = 4.5
-)
+# ggsave(
+#   plot = iptg_high_low_plot_all_measurements,
+#   filename = str_c(out_folder, "/iptg_high_low_scatter_all_measurements_", effect_size_name_for_non_limma_analyis, ".pdf"),
+#   width = 8,
+#   height = 4.5
+# )
 
 z_score_plot_high <- ggplot(data = iris_hits) +
   geom_pointrange(
@@ -572,7 +637,7 @@ z_score_plot_high <- ggplot(data = iris_hits) +
   ) +
   facet_wrap(. ~ folder, ncol = 1) +
   geom_hline(data = data.frame(folder = unique(iris_hits$folder)) %>%
-    mutate(z_score_cutoff = ifelse(!str_detect(folder, "Retron"), z_score_cutoff, -z_score_cutoff)), aes(yintercept = z_score_cutoff), linetype = "longdash", colour = "grey", size = 0.5)
+    mutate(z_score_cutoff = ifelse(!str_detect(folder, "Retron"), z_score_cutoff, -z_score_cutoff)), aes(yintercept = z_score_cutoff), linetype = "longdash", colour = "grey", linewidth = 0.5)
 
 z_score_plot_low <- ggplot(data = iris_hits) +
   geom_pointrange(
@@ -597,7 +662,7 @@ z_score_plot_low <- ggplot(data = iris_hits) +
   ) +
   facet_wrap(. ~ folder, ncol = 1) +
   geom_hline(data = data.frame(folder = unique(iris_hits$folder)) %>%
-    mutate(z_score_cutoff = ifelse(!str_detect(folder, "Retron"), z_score_cutoff, -z_score_cutoff)), aes(yintercept = z_score_cutoff), linetype = "longdash", colour = "grey", size = 0.5)
+    mutate(z_score_cutoff = ifelse(!str_detect(folder, "Retron"), z_score_cutoff, -z_score_cutoff)), aes(yintercept = z_score_cutoff), linetype = "longdash", colour = "grey", linewidth = 0.5)
 
 
 ggsave(
@@ -606,7 +671,6 @@ ggsave(
   width = 16,
   height = 20
 )
-
 
 #########################
 # Produce gene-wise plots

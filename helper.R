@@ -135,7 +135,6 @@ loadIrisFiles <- function(folder) {
   rbindlist(out, idcol = "file")
 }
 
-
 plotReplicateCorrelation <- function(dat) {
   # remove factor levels with all NA's ------
   percentage_of_nas <- dat %>%
@@ -149,7 +148,7 @@ plotReplicateCorrelation <- function(dat) {
     select(contains("rep")) %>%
     colnames()
 
-  dat <- select(dat, !cols_to_remove)
+  dat <- select(dat, !all_of(cols_to_remove))
   # ------------------------------------
 
   # plot replicate correlation
@@ -160,20 +159,23 @@ plotReplicateCorrelation <- function(dat) {
   dat_o <- dat[!has_zero] %>%
     # filter(`rep1` > 0 & `rep2` > 0)  %>%
 
-    mutate(across(is.numeric, ~ log10(.x + min_colony_size_opacity)))
+    mutate(across(where(is.numeric), ~ log10(.x + min_colony_size_opacity)))
 
-  plot_o <- dat_o %>%
+  # This is very heavy-handed, but I cannot think of a better way to suppress the warnings due to (some) NA values here
+  # TODO: Clean this up
+  plot_o <- suppressWarnings(dat_o %>%
     {
       ggpairs(.,
         columns = 4:ncol(.), aes(color = cond, alpha = 0.3),
         lower = list(size = 0.5 / n_plots),
         upper = list(continuous = wrap("cor", size = 6 / sqrt(n_plots))),
+        progress = FALSE
       ) +
         xlab(expression(log[10] * (opacity))) +
         ylab(expression(log[10] * (opacity))) +
         scale_color_brewer(palette = "Dark2") +
         theme_bw()
-    }
+    })
   return(list(dat_o, plot_o))
 }
 
@@ -194,7 +196,7 @@ plotHC <- function(dat, meta_cols = NULL, pivlong = TRUE, value_col_name = NULL)
     colnames()
 
   # TODO: Fix deprecationWarning here
-  dat <- select(dat, !cols_to_remove)
+  dat <- select(dat, !all_of(cols_to_remove))
   # ------------------------------------
 
   # make data wider still
@@ -353,13 +355,13 @@ get_opacity_measurement_plots <- function(
     data = iris %>%
       filter(genename == control_gene_name), aes(x = numb, y = .data[[value_to_plot]], color = cond)
   ) +
-    geom_hline(yintercept = 0, linetype = "longdash", colour = "grey", alpha = 0.35) +
-    geom_hline(yintercept = 25000, linetype = "longdash", colour = "grey", alpha = 0.35) +
-    geom_hline(yintercept = 50000, linetype = "longdash", colour = "grey", alpha = 0.35) +
-    geom_hline(yintercept = 75000, linetype = "longdash", colour = "grey", alpha = 0.35) +
-    geom_hline(yintercept = 100000, linetype = "longdash", colour = "grey", alpha = 0.35) +
-    geom_hline(yintercept = 125000, linetype = "longdash", colour = "grey", alpha = 0.35) +
-    geom_hline(yintercept = 150000, linetype = "longdash", colour = "grey", alpha = 0.35) +
+    # geom_hline(yintercept = 0, linetype = "longdash", colour = "grey", alpha = 0.35) +
+    # geom_hline(yintercept = 25000, linetype = "longdash", colour = "grey", alpha = 0.35) +
+    # geom_hline(yintercept = 50000, linetype = "longdash", colour = "grey", alpha = 0.35) +
+    # geom_hline(yintercept = 75000, linetype = "longdash", colour = "grey", alpha = 0.35) +
+    # geom_hline(yintercept = 100000, linetype = "longdash", colour = "grey", alpha = 0.35) +
+    # geom_hline(yintercept = 125000, linetype = "longdash", colour = "grey", alpha = 0.35) +
+    # geom_hline(yintercept = 150000, linetype = "longdash", colour = "grey", alpha = 0.35) +
     geom_boxplot() +
     geom_text(
       data = iris %>%
@@ -368,7 +370,8 @@ get_opacity_measurement_plots <- function(
           cond, numb, folder_plate_id, colony_on_edge
         ) %>%
         summarize(
-          {{ value_to_plot }} := median(.data[[value_to_plot]])
+          {{ value_to_plot }} := median(.data[[value_to_plot]]),
+          .groups = "drop_last"
         ), aes(label = .data[[value_to_plot]]), y = max(iris[[value_to_plot]]), size = 3
     ) +
     theme_presentation() +
@@ -403,7 +406,8 @@ get_opacity_measurement_plots <- function(
           cond, numb, folder_plate_id, colony_on_edge
         ) %>%
         summarize(
-          {{ value_to_plot }} := median(.data[[value_to_plot]])
+          {{ value_to_plot }} := median(.data[[value_to_plot]]),
+          .groups = "drop_last"
         ), aes(label = .data[[value_to_plot]]), y = max(iris[[value_to_plot]]), size = 3
     ) +
     theme_presentation() +
@@ -462,8 +466,8 @@ get_iptg_scatter <- function(
     geom_text(
       data = iris_wide %>%
         group_by(folder) %>%
-        summarize(co = round(cor(effect_size_iptghigh, effect_size_iptglow), 3)),
-      aes(x = min(iris_wide$effect_size_iptghigh), y = max(iris_wide$effect_size_iptglow), label = co), size = 3, nudge_x = nudge_x
+        summarize(co = round(cor(effect_size_iptghigh, effect_size_iptglow, use = "complete.obs"), 3)),
+      aes(x = min(iris_wide$effect_size_iptghigh, na.rm = TRUE), y = max(iris_wide$effect_size_iptglow, na.rm = TRUE), label = co), size = 3, nudge_x = nudge_x
     ) +
     geom_text(
       data = iris_hits %>%
@@ -480,7 +484,7 @@ get_iptg_scatter <- function(
           )
         ) %>%
         arrange(folder, hit),
-      aes(x = min(iris_wide$effect_size_iptghigh), y = max(iris_wide$effect_size_iptglow) - y_offset, label = n, color = hit), nudge_x = nudge_x, size = 3
+      aes(x = min(iris_wide$effect_size_iptghigh, na.rm = TRUE), y = max(iris_wide$effect_size_iptglow, na.rm = TRUE) - y_offset, label = n, color = hit), nudge_x = nudge_x, size = 3
     ) +
     theme_presentation() +
     facet_wrap(. ~ folder) +
@@ -491,8 +495,8 @@ get_iptg_scatter <- function(
     ggtitle("Effect sizes > 0: relatively large colony upon retron/toxin induction\nEffect sizes < 0: relatively small colony upon retron/toxin induction") +
     # Make title font smaller
     theme(plot.title = element_text(size = 12)) +
-    xlim(c(min(iris_wide$effect_size_iptghigh, iris_wide$effect_size_iptglow), max(iris_wide$effect_size_iptghigh, iris_wide$effect_size_iptglow))) +
-    ylim(c(min(iris_wide$effect_size_iptghigh, iris_wide$effect_size_iptglow), max(iris_wide$effect_size_iptghigh, iris_wide$effect_size_iptglow))) +
+    xlim(c(min(iris_wide$effect_size_iptghigh, iris_wide$effect_size_iptglow, na.rm = TRUE), max(iris_wide$effect_size_iptghigh, iris_wide$effect_size_iptglow, na.rm = TRUE))) +
+    ylim(c(min(iris_wide$effect_size_iptghigh, iris_wide$effect_size_iptglow, na.rm = TRUE), max(iris_wide$effect_size_iptghigh, iris_wide$effect_size_iptglow, na.rm = TRUE))) +
     NULL
 
   return(p)

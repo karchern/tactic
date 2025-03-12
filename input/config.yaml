@@ -7,7 +7,9 @@ min_colony_size_opacity: 12000  # too small a colony
 iris_input_folder: '/Users/karcher/tactic/input/iris_files/' 
 out_folder: '/Users/karcher/tactic/output' 
 visualize_only_control_and_treatment_conditions: True
+# plate vs plate-and-biorep normalization essentially make no  difference
 effect_size_name_for_non_limma_analyis: ec_opacity_z_scored_by_plate_including_gfp
+#effect_size_name_for_non_limma_analyis: ec_opacity_z_scored_by_plate_and_biorep_including_gfp
 # variables contained in the iris filenames separated by '-'
 column_names:
   - cond # cond: Combination of drugs adiminstred (antibiotics; inducers)
