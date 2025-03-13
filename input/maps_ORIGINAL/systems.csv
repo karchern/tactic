@@ -1,7 +1,11 @@
 system_num,system_desc
-1,E. coli BW25113 p-rcaT-Sen2 (pJB37
+1,E. coli BW25113 p-rcaT-Sen2 (pJB37)
 2,E. coli BW25113 p-retron-Sen2 (pJB38)
 3,E. coli BW25113 p-rcaT-Eco9 (pJB117)
-4,"E. coli BW25113 p-rcaT-RT-Eco9 (pJB140) + p-msrmsd-Eco9 (pJB137, Ampicillin, 50ug/ml)"
-5,E. coli BW25113 p-rcaT-Eco1 (pMZ20)
-6,E. coli BW25113 p-retron-Eco1 (pJB148)
+4,E. coli BW25113 p-retron-Eco9 (pJB118)_Leaky
+5,E. coli BW25113 p-retron-Eco1 (pJB149)
+6,E. coli BW25113 p-HEPN (Inga)_bad
+7,E. coli BW25113 p-HEPN-MNT (Inga)_bad
+8,E. coli BW25113 p-darT (Laub)_isRcaT-Sen2
+9,E. coli BW25113 p-darT-darG (Laub)
+10,E. coli BW25113 p-ApeA-WT (Inga) 
