@@ -59,25 +59,6 @@ tech_rep_vector <- c(
   2, 2, 3, 3
 )
 
-# TODO: I think what this table is printing is at the least misleading, if not completely wrong.
-print("Overall, I'm seeing this:")
-tmp <- rep_information %>%
-  group_by(plate_number, bio_rep) %>%
-  tally() %>%
-  rename(tech_reps = n) %>%
-  print()
-w <- FALSE
-if (length(unique(tmp$tech_reps)) != 1) {
-  w <- TRUE
-  warning("Number of technical replicates is not consistent over plates; this is possible but please make sure this is intended.")
-}
-if (w) {
-  # seems idiotic but try putting it in the condition :)
-  Sys.sleep(2)
-}
-
-
-
 map96to384quadrants <- registerQuadrants("384w",
   plate_number = plate_number_vector,
   tech_rep = tech_rep_vector
