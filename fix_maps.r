@@ -5,26 +5,31 @@ files_modified <- map(files, \(x) {
     plate_number <- str_split(x, "_plate_")[[1]][2]
     plate_number <- str_replace(plate_number, ".csv", "")
     plate_number <- as.numeric(plate_number)
-    # TODO: Show this below to Alessio (mention the change you did for screen 1), make sure it's sensible (I can't quite remember why I needed to do this)
-    if (
-        plate_number %in% c(1, 2, 3)
-    ) {
+
+    if (plate_number %in% c(1, 2, 3)) {
+        xx <- read_csv(x) %>%
+            mutate(biorep96 = plate_number)
+    } else if (plate_number == 4) {
+        xx <- read_csv(x)
+        xx$biorep96 <- NA
+        xx$biorep96[1:22] <- 1
+        xx$biorep96[23:44] <- 2
+        xx$biorep96[45:66] <- 3
+        xx$biorep96[67:88] <- 4
+        xx$biorep96[89:96] <- 4 # These are some repeated genes...
+    } else if (plate_number == 5) {
         xx <- read_csv(x) %>%
             mutate(biorep96 = 1)
-    } else if (
-        plate_number %in% c(4, 5, 6)
-    ) {
+    } else if (plate_number == 6) {
         xx <- read_csv(x) %>%
             mutate(biorep96 = 2)
-    } else if (
-        plate_number %in% c(7, 8, 9)
-    ) {
+    } else if (plate_number == 7) {
         xx <- read_csv(x) %>%
-            mutate(biorep96 = 3)
-    } else {
-        stop("This should never be reached - check your maps files for consistency")
+            mutate(biorep96 = 1)
+    } else if (plate_number == 8) {
+        xx <- read_csv(x) %>%
+            mutate(biorep96 = 2)
     }
-
     xx <- xx %>%
         mutate(plt96 = plate_number)
     return(xx)

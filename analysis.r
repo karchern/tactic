@@ -12,13 +12,13 @@ names(cond_color_vector) <- cond_color_vector_levels
 
 # biological replicates
 biol_replicate_column_name <- "biorep96"
-expected_num_biol_replicates <- 2
+expected_num_biol_replicates <- c(3, 4)
 
 # technical replicates
 tech_replicate_column_name <- "techrep96"
 # expected_num_tech_replicates <- 2
 # If a vector, it means number of technical replicates can vary
-expected_num_tech_replicates <- c(2, 3)
+expected_num_tech_replicates <- c(1)
 
 # plate replicate
 plate_replicate_column_name <- "plate_replicate"
@@ -46,11 +46,28 @@ expected_num_plate_replicates <- c(2, 3)
 # second 384w plate
 # third 384w plate
 # fourth 384w plate
+# plate_number_vector <- c(
+#   1, 2, 3, 2,
+#   4, 5, 6, 6,
+#   1, 2, 3, 1,
+#   4, 5, 6, 5
+# )
+# bio_rep_vector <- c(
+#   1, 1, 1, 1,
+#   2, 2, 2, 2,
+#   1, 1, 1, 1,
+#   2, 2, 2, 2
+# )
+# tech_rep_vector <- c(
+#   1, 1, 1, 2,
+#   1, 1, 1, 2,
+#   2, 3, 2, 3,
+#   2, 2, 3, 3
+# )
+
 plate_number_vector <- c(
-  1, 2, 3, 2,
-  4, 5, 6, 6,
-  1, 2, 3, 1,
-  4, 5, 6, 5
+  1, 2, 3, 4,
+  1, 2, 3, 4
 )
 tech_rep_vector <- c(
   1, 1, 1, 2,
