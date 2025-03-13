@@ -52,39 +52,12 @@ plate_number_vector <- c(
   1, 2, 3, 1,
   4, 5, 6, 5
 )
-bio_rep_vector <- c(
-  1, 1, 1, 1,
-  2, 2, 2, 2,
-  1, 1, 1, 1,
-  2, 2, 2, 2
-)
 tech_rep_vector <- c(
   1, 1, 1, 2,
   1, 1, 1, 2,
   2, 3, 2, 3,
   2, 2, 3, 3
 )
-
-rep_information <- data.frame(
-  plate_number = plate_number_vector,
-  bio_rep = bio_rep_vector,
-  tech_rep = tech_rep_vector
-) %>%
-  as_tibble()
-
-print(str_c("We array a total of ", length(plate_number_vector), " 96 well plates with the following counts"))
-tmp <- table(plate_number_vector)
-names(tmp) <- str_c("Plate ", names(tmp))
-print(tmp)
-
-# Some diagnostics
-stopifnot(length(bio_rep_vector) == length(tech_rep_vector))
-if (length(unique(table(bio_rep_vector))) != 1) {
-  stop("Number of biological replicates is not consistent across 96 well plates, check how you do define bio_rep_vector")
-} else {
-  print(str_c("Number of biological replicates (inferred from bio_rep_vector): ", length(unique(bio_rep_vector))))
-  num_biol_repl <- length(unique(bio_rep_vector))
-}
 
 # TODO: I think what this table is printing is at the least misleading, if not completely wrong.
 print("Overall, I'm seeing this:")
