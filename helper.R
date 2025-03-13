@@ -180,7 +180,7 @@ plotReplicateCorrelation <- function(dat) {
 
 plotHC <- function(dat, meta_cols = NULL, pivlong = TRUE, value_col_name = NULL) {
   # plot hierachical clustering
-
+  browser()
   # remove factor levels with all NA's ------
   percentage_of_nas <- dat %>%
     select(contains("rep"), cond) %>%
@@ -631,6 +631,7 @@ rep_cor_qc_and_limma <- function() {
     })
 
     # Also without averaging, over all replicates, with sensible color scale
+    browser()
     pdf(file = paste0(out_folder, "/qc_", "clustering_median_opacity_over_other_replicates.pdf"), h = 8, w = 6)
     plt <- plotHC(
       fold %>%
