@@ -107,7 +107,6 @@ if (w) {
 
 map96to384quadrants <- registerQuadrants("384w",
   plate_number = plate_number_vector,
-  bio_rep = bio_rep_vector,
   tech_rep = tech_rep_vector
 )
 
@@ -135,7 +134,7 @@ iris <- left_join(map96to384quadrants, map384to1536quadrants, relationship = "ma
   add1536RowAndCol() %>%
   right_join(iris, by = c("row1536", "col1536")) %>%
   as_tibble() %>%
-  left_join(read96wMaps(), by = c("plt96", "biorep96", "row96", "col96")) %>%
+  left_join(read96wMaps(), by = c("plt96", "row96", "col96")) %>%
   mutate(
     colony_id  = interaction(plt1536, row1536, col1536),
     biorep_all = interaction(across(all_of(c(biol_replicate_column_name, tech_replicate_column_name, plate_replicate_column_name)))) %>% as.numeric() %>% str_pad(2, pad = "0")

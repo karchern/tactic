@@ -16,16 +16,14 @@ read96wMaps <- function(folder = "./input/maps/") {
 
 
 registerQuadrants <- function(
-    form = "384w", plate_number = NULL, bio_rep = NULL,
+    form = "384w", plate_number = NULL,
     tech_rep = NULL) {
   if (!form %in% c("384w", "1536w")) stop("\nUnknown plate format. Should be '384w' or '1536'")
   if (is.null(plate_number)) stop("\nWas expecting plate numbers!")
   if (length(plate_number) %% 4 != 0) stop("\nWas expecting plates for all four quadrants!")
 
-  if (is.null(bio_rep)) bio_rep <- rep(1, length(plate_number))
   if (is.null(tech_rep)) tech_rep <- rep(1, length(plate_number))
 
-  if (length(plate_number) != length(bio_rep)) stop("\nNumber of bioreps does not match the number of plates!")
   if (length(plate_number) != length(tech_rep)) stop("\nNumber of techreps does not match the number of plates!")
 
   n <- length(plate_number) / 4
@@ -42,13 +40,13 @@ registerQuadrants <- function(
     mutate(to = gsub("plt_", "", to)) %>%
     mutate(across(everything(), as.numeric))
 
-  out <- cbind(out, bio_rep, tech_rep)
+  out <- cbind(out, tech_rep)
 
   if (form == "384w") {
-    names(out) <- c("qrt384", "plt384", "plt96", "biorep96", "techrep96")
+    names(out) <- c("qrt384", "plt384", "plt96", "techrep96")
     if (length(unique(out$plt384)) == 1) out <- subset(out, select = -plt384)
   } else {
-    names(out) <- c("qrt1536", "plt1536", "plt384", "biorep384", "techrep384")
+    names(out) <- c("qrt1536", "plt1536", "plt384", "techrep384")
     if (length(unique(out$plt1536)) == 1) out <- subset(out, select = -plt1536)
   }
 
