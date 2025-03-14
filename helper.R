@@ -9,7 +9,7 @@ load_yaml_to_global <- function(file_path) {
 }
 
 
-read96wMaps <- function(folder = "./input/maps/") {
+read96wMaps <- function(folder = NULL) {
   lapply(list.files(folder, pattern = "library_plate", full.names = T), fread) %>%
     rbindlist()
 }
@@ -289,7 +289,11 @@ getResultsFromLinearModel <- function(
     folder,
     type = "biorep_all",
     plot_pca_qc = T,
-    normalize_how = NULL) {
+    normalize_how = NULL,
+    out_folder = NULL) {
+  if (is.null(out_folder)) {
+    stop("Please set out_folder in getResultsFromLinearModel")
+  }
   fitness <- dat %>%
     pivot_wider(
       id_cols = genename,
@@ -316,7 +320,7 @@ getResultsFromLinearModel <- function(
   eset <- ExpressionSet(m, AnnotatedDataFrame(meta), AnnotatedDataFrame(f))
 
   if (plot_pca_qc) {
-    pdf(paste0("./output/", folder, "/qc_", type, "_pca.pdf"), h = 5, w = 10)
+    pdf(paste0(out_folder, "/qc_", type, "_pca.pdf"), h = 5, w = 10)
     par(mfrow = c(1, 2), pty = "s")
     plotMDS(eset, labels = pData(eset)[, "rep"], cex = 0.75)
     plotMDS(eset, labels = pData(eset)[, "cond"], cex = 0.75)
@@ -344,9 +348,8 @@ getResultsFromLinearModel <- function(
         theme_cowplot()
     }
 
-  ggsave(paste0("./output/", folder, "/res_volcano_", type, "__normalization_method_", normalize_how, ".pdf"), width = 7, height = 7)
-
-  fwrite(res, paste0("./output/", folder, "/res_", type, "__normalization_method_", normalize_how, ".csv"))
+  ggsave(paste0(out_folder, "/res_volcano_", type, "__normalization_method_", normalize_how, ".pdf"), width = 7, height = 7)
+  fwrite(res, paste0(out_folder, "/res_", type, "__normalization_method_", normalize_how, ".csv"))
   return(res)
 }
 
@@ -357,7 +360,11 @@ get_opacity_measurement_plots <- function(
     output_name_base = NULL,
     mi,
     ma,
-    gtitle) {
+    gtitle,
+    out_folder = NULL) {
+  if (is.null(out_folder)) {
+    stop("Please set out_folder in get_opacity_measurement_plots")
+  }
   gfp_controls_plot <- ggplot(
     data = iris %>%
       filter(genename == control_gene_name), aes(x = numb, y = .data[[value_to_plot]], color = cond)
@@ -391,7 +398,7 @@ get_opacity_measurement_plots <- function(
     ylim(c(mi, ma * 1.2))
   ggsave(
     plot = gfp_controls_plot + ggtitle(str_c(gtitle, " (only gfp controls)")),
-    filename = str_c("./output/", output_name_base, "_gfp_controls.pdf"),
+    filename = str_c(out_folder, "/", output_name_base, "_gfp_controls.pdf"),
     width = 4 * sqrt(length(unique(iris$numb))),
     height = 18
   )
@@ -428,7 +435,7 @@ get_opacity_measurement_plots <- function(
 
   ggsave(
     plot = all_values_plot + ggtitle(str_c(gtitle)),
-    filename = str_c("./output/", output_name_base, ".pdf"),
+    filename = str_c(out_folder, "/", output_name_base, ".pdf"),
     width = 4 * sqrt(length(unique(iris$numb))),
     height = 18
   )
@@ -579,9 +586,17 @@ get_condition_wise_replicate_correlation_matrix <- function(m, folder = NULL) {
   return(hm_list)
 }
 
-rep_cor_qc_and_limma <- function() {
+rep_cor_qc_and_limma <- function(
+    out_folder = NULL,
+    screen = NULL) {
+  if (is.null(screen)) {
+    stop("Please set screen in rep_cor_qc_and_limma")
+  }
+  if (is.null(out_folder)) {
+    stop("Please set out_folder in rep_cor_qc_and_limma")
+  }
   res <- map(unique(iris$folder), function(folder) {
-    out_folder <- paste0("./output/", folder)
+    out_folder <- paste0(out_folder, "/", screen, "/", folder)
     if (!dir.exists(out_folder)) dir.create(out_folder, recursive = T)
 
     fold <- iris %>%
@@ -697,8 +712,8 @@ rep_cor_qc_and_limma <- function() {
         fitness_median_gfp_log2 = log2(fitness_median_gfp)
       )
 
-    res_median_gfp_log2 <- getResultsFromLinearModel(fitness_long, folder, type = "biorep_all", normalize_how = "fitness_median_gfp_log2")
-    res_z_score <- getResultsFromLinearModel(fitness_long, folder, type = "biorep_all", normalize_how = "fitness_z_score_by_plate")
+    res_median_gfp_log2 <- getResultsFromLinearModel(fitness_long, folder, type = "biorep_all", normalize_how = "fitness_median_gfp_log2", out_folder = out_folder)
+    res_z_score <- getResultsFromLinearModel(fitness_long, folder, type = "biorep_all", normalize_how = "fitness_z_score_by_plate", out_folder = out_folder)
     return(list(
       res_median_gfp_log2 = res_median_gfp_log2,
       res_z_score = res_z_score

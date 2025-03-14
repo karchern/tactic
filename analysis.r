@@ -5,54 +5,13 @@ load_yaml_to_global("./config.yaml")
 # This gets loaded from the yaml file
 names(cond_color_vector) <- cond_color_vector_levels
 
-# Specify replicate information
-# Experimental design can be complicated, with biological replicates and nested technical replicates.
-# Below, I implement sanity checks that specify the expected relationship/number of replicates in the experiment.
-# This will be used for sanity checks down the line
-
-# biological replicates
-biol_replicate_column_name <- "biorep96"
-expected_num_biol_replicates <- 2
-
-# technical replicates
-tech_replicate_column_name <- "techrep96"
-# expected_num_tech_replicates <- 2
-# If a vector, it means number of technical replicates can vary
-expected_num_tech_replicates <- c(2, 3)
-
-# plate replicate
-plate_replicate_column_name <- "plate_replicate"
-# Some systems have 2, some 3 plate replicates
-# TODO: This would be better solved by a mapping of systems to plate replicates, but ok for now
-expected_num_plate_replicates <- c(2, 3)
-
-
-# Specify experimental design
-
-# This code block does 2 things
-# - It loads the initial 96 well plate pipeting scheme, relating genes to their positions in the plate. It then maps individual wells of the 96 well plate to wells in the 384 well plate, and then to the 1536 well plate.
-# - Furthermore, and importantly, the registerQuadrants function specify which plate are biol. replicates, and how these are later on further technically replicated in 384 well plates
-
-# It is important to note that the final replication step (what I call 'plate replicate') is not encoded here, but instead encoded in the iris file names (see 'tail' in the config.yaml)
-
-
-# Plate maps -------------------
-
-# 1) create/adjust the 96w maps at './input/maps/library_plate_n.csv'
-
-# 2) go from 96w to 384w to 1536
-# TODO: Document the logic here somehow - maybe best in the git repo.
-# first 384w plate
-# second 384w plate
-# third 384w plate
-# fourth 384w plate
-plate_number_vector <- c(
+plate_number_vector_384 <- c(
   1, 2, 3, 2,
   4, 5, 6, 6,
   1, 2, 3, 1,
   4, 5, 6, 5
 )
-tech_rep_vector <- c(
+tech_rep_vector_384 <- c(
   1, 1, 1, 2,
   1, 1, 1, 2,
   2, 3, 2, 3,
@@ -60,21 +19,24 @@ tech_rep_vector <- c(
 )
 
 map96to384quadrants <- registerQuadrants("384w",
-  plate_number = plate_number_vector,
-  tech_rep = tech_rep_vector
+  plate_number = plate_number_vector_384,
+  tech_rep = tech_rep_vector_384
 )
+
+plate_number_vector_1536 <- c(1, 2, 3, 4)
+tech_rep_vector_1536 <- c(1, 1, 1, 1)
 
 map384to1536quadrants <- registerQuadrants("1536w",
   # TODO: TO be consistent with google scheme, make this work with letters
-  plate_number = c(1, 2, 3, 4),
-  tech_rep = c(1, 1, 1, 1)
+  plate_number = plate_number_vector_1536,
+  tech_rep = tech_rep_vector_1536
 ) # TODO: For safety reasons, maybe remove biorep384, techrep384???
 
 
-folders <- list.files(iris_input_folder, full.names = T)
+folders <- list.files(str_c(iris_input_folder, screen, "/iris_files"), full.names = T)
 
 iris <- lapply(folders, loadIrisFiles) %>%
-  setNames(gsub(paste0(iris_input_folder, "/"), "", folders)) %>%
+  setNames(gsub(paste0(str_c(iris_input_folder, screen, "/iris_files"), "/"), "", folders)) %>%
   rbindlist(idcol = "folder") %>%
   group_by(folder) %>% # to annotate the same way in each folder
   mutate(plt1536 = match(file, unique(file))) %>%
@@ -82,14 +44,16 @@ iris <- lapply(folders, loadIrisFiles) %>%
   mutate(tail = gsub(".JPG.iris", "", tail)) %>%
   separate(tail, c("system_num", "plate_replicate")) %>% # This line generates the 'plate replicate'
   rename(row1536 = row, col1536 = column) %>%
-  left_join(fread("./input/maps/systems.csv", colClasses = "character"), by = "system_num")
+  left_join(fread(str_c("./input/", screen, "/maps/systems.csv"), colClasses = "character"), by = "system_num")
 
 iris <- left_join(map96to384quadrants, map384to1536quadrants, relationship = "many-to-many", by = "plt384") %>%
   add384RowAndCol() %>%
   add1536RowAndCol() %>%
   right_join(iris, by = c("row1536", "col1536")) %>%
   as_tibble() %>%
-  left_join(read96wMaps(), by = c("plt96", "row96", "col96")) %>%
+  left_join(read96wMaps(
+    folder = str_c(iris_input_folder, screen, "/maps")
+  ), by = c("plt96", "row96", "col96")) %>%
   mutate(
     colony_id  = interaction(plt1536, row1536, col1536),
     biorep_all = interaction(across(contains("rep"))) %>% as.numeric() %>% str_pad(2, pad = "0")
@@ -172,7 +136,10 @@ iris_orig <- iris
 ###################################################
 # TODO: Move QC plots into separate function (no need for this to be here...)
 # This returns the limma result(s), storing in tmp object for now
-tmp <- rep_cor_qc_and_limma()
+tmp <- rep_cor_qc_and_limma(
+  out_folder = out_folder,
+  screen = screen
+)
 
 ##################################
 # Z-score-based analysis
@@ -196,15 +163,7 @@ value_tp <- "opacity"
 mi <- min(iris[[value_tp]])
 ma <- max(iris[[value_tp]])
 
-get_opacity_measurement_plots(
-  iris,
-  "gfp",
-  value_tp,
-  "opacity_raw",
-  mi,
-  ma,
-  "Raw opacity values"
-)
+get_opacity_measurement_plots(iris, "gfp", value_tp, "opacity_raw", mi, ma, "Raw opacity values", out_folder = str_c(out_folder, "/", screen))
 
 # Normalize opacity values edge effects wrt the center of the plates (ALL values, not just gfp controls)
 edge_correction_factor_per_plate <- iris %>%
@@ -232,7 +191,7 @@ iris <- iris %>%
 value_tp <- "opacity_edge_corrected"
 mi <- min(iris[[value_tp]])
 ma <- max(iris[[value_tp]])
-get_opacity_measurement_plots(iris, "gfp", value_tp, "opacity_edge_corrected", mi, ma, "Edge-corrected opacity values")
+get_opacity_measurement_plots(iris, "gfp", value_tp, "opacity_edge_corrected", mi, ma, "Edge-corrected opacity values", out_folder = str_c(out_folder, "/", screen))
 
 iris <- iris %>%
   filter(grepl("1001021", numb) | grepl("10010201", numb) | grepl("100100201", numb) | grepl("10010021", numb) | grepl("10010021", numb) | grepl("1001001", numb) | grepl("100101", numb)) # SpectetAraIPTG (library + system induced, with low and high concentrations) and SpectetIPTG (only system induced)
@@ -262,19 +221,19 @@ iris <- iris %>%
 value_tp <- "ec_opacity_z_scored_by_plate_including_gfp"
 mi <- min(iris[[value_tp]])
 ma <- max(iris[[value_tp]])
-get_opacity_measurement_plots(iris, "gfp", value_tp, "ec_opacity_z_scored_by_plate_including_gfp", mi, ma, "Z-scored, edge-corrected opacity values (by plate)")
+get_opacity_measurement_plots(iris, "gfp", value_tp, "ec_opacity_z_scored_by_plate_including_gfp", mi, ma, "Z-scored, edge-corrected opacity values (by plate)", out_folder = str_c(out_folder, "/", screen))
 value_tp <- "ec_opacity_z_scored_by_plate_and_biorep_including_gfp"
 mi <- min(iris[[value_tp]])
 ma <- max(iris[[value_tp]])
-get_opacity_measurement_plots(iris, "gfp", value_tp, "ec_opacity_z_scored_by_plate_and_biorep_including_gfp", mi, ma, "Z-scored, edge-corrected opacity values (by plate and biorep)")
+get_opacity_measurement_plots(iris, "gfp", value_tp, "ec_opacity_z_scored_by_plate_and_biorep_including_gfp", mi, ma, "Z-scored, edge-corrected opacity values (by plate and biorep)", out_folder = str_c(out_folder, "/", screen))
 value_tp <- "ec_opacity_corrected_by_plate_using_gfp"
 mi <- min(iris[[value_tp]])
 ma <- max(iris[[value_tp]])
-get_opacity_measurement_plots(iris, "gfp", value_tp, "ec_opacity_corrected_by_plate_using_gfp", mi, ma, "edge-corrected opacity values\nnormalized by plate-wise median gfp")
+get_opacity_measurement_plots(iris, "gfp", value_tp, "ec_opacity_corrected_by_plate_using_gfp", mi, ma, "edge-corrected opacity values\nnormalized by plate-wise median gfp", out_folder = str_c(out_folder, "/", screen))
 value_tp <- "ec_opacity_corrected_by_plate_and_biorep_using_gfp"
 mi <- min(iris[[value_tp]])
 ma <- max(iris[[value_tp]])
-get_opacity_measurement_plots(iris, "gfp", value_tp, "ec_opacity_corrected_by_plate_using_gfp", mi, ma, "edge-corrected opacity values\nnormalized by plate- and biorep-wise median gfp")
+get_opacity_measurement_plots(iris, "gfp", value_tp, "ec_opacity_corrected_by_plate_using_gfp", mi, ma, "edge-corrected opacity values\nnormalized by plate- and biorep-wise median gfp", out_folder = str_c(out_folder, "/", screen))
 
 p <- iris %>%
   ungroup() %>%
@@ -312,7 +271,7 @@ p <- iris %>%
 
 ggsave(
   plot = p,
-  filename = str_c(out_folder, "/", "normalized_effect_sizes_comparison.pdf"),
+  filename = str_c(out_folder, "/", screen, "/normalized_effect_sizes_comparison.pdf"),
   width = 5.5,
   height = 6.5,
   dpi = 300
@@ -399,7 +358,7 @@ if (any(is.na(iris_hits))) {
 
 write_tsv(
   iris_hits,
-  str_c(out_folder, "/z_score_effect_sizes.tsv")
+  str_c(out_folder, "/", screen, "/z_score_effect_sizes.tsv")
 )
 
 iris_hits <- iris_hits %>%
@@ -455,7 +414,7 @@ iptg_high_low_plot_one_point_per_gene <- get_iptg_scatter(
 
 ggsave(
   plot = iptg_high_low_plot_one_point_per_gene,
-  filename = str_c(out_folder, "/iptg_high_low_scatter_one_point_per_gene_", effect_size_name_for_non_limma_analyis, ".pdf"),
+  filename = str_c(out_folder, "/", screen, "/iptg_high_low_scatter_one_point_per_gene_", effect_size_name_for_non_limma_analyis, ".pdf"),
   width = 7,
   height = 4.875
 )
@@ -470,12 +429,6 @@ ggsave(
 #   plot_means = FALSE
 # )
 
-# ggsave(
-#   plot = iptg_high_low_plot_all_measurements,
-#   filename = str_c(out_folder, "/iptg_high_low_scatter_all_measurements_", effect_size_name_for_non_limma_analyis, ".pdf"),
-#   width = 8,
-#   height = 4.5
-# )
 
 z_score_plot_high <- ggplot(data = iris_hits) +
   geom_pointrange(
@@ -530,7 +483,7 @@ z_score_plot_low <- ggplot(data = iris_hits) +
 
 ggsave(
   plot = (z_score_plot_high + ggtitle("IPTG: High") + theme(plot.title = element_text(size = 20, face = "bold"))) + (z_score_plot_low + ggtitle("IPTG: Low") + theme(plot.title = element_text(size = 20, face = "bold"))) + plot_layout(ncol = 2),
-  filename = str_c(out_folder, "/z_score_plot.pdf"),
+  filename = str_c(out_folder, "/", screen, "/z_score_plot.pdf"),
   width = 16,
   height = 20
 )
@@ -586,12 +539,12 @@ data_plot <- data_plot %>%
 
 pwalk(list(data_plot$plottt, data_plot$folder, data_plot$genename, data_plot$num_bioreps), \(plo, fol, gn, nbr) {
   # if str_c(out_folder, "/", fol, '/opacities_per_gene') doesnt exit, generate it
-  if (!dir.exists(str_c(out_folder, "/", fol, "/opacities_per_gene"))) {
-    dir.create(str_c(out_folder, "/", fol, "/opacities_per_gene"), recursive = TRUE)
+  if (!dir.exists(str_c(out_folder, "/", screen, "/", fol, "/opacities_per_gene"))) {
+    dir.create(str_c(out_folder, "/", screen, "/", fol, "/opacities_per_gene"), recursive = TRUE)
   }
   ggsave(
     plot = plo,
-    filename = str_c(out_folder, "/", fol, "/opacities_per_gene", "/", gn, "_", effect_size_name_for_non_limma_analyis, ".pdf"),
+    filename = str_c(out_folder, "/", screen, "/", fol, "/opacities_per_gene", "/", gn, "_", effect_size_name_for_non_limma_analyis, ".pdf"),
     width = 6,
     height = 5 * ((nbr) / 2)
   )
