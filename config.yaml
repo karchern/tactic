@@ -1,0 +1,165 @@
+###############################
+# Parameters - read carefully #
+###############################
+
+screen: screen_2
+iris_input_folder: '/Users/karcher/tactic/input/' 
+out_folder: '/Users/karcher/tactic/output/' 
+
+z_score_cutoff: 1
+min_colony_size_opacity: 12000
+visualize_only_control_and_treatment_conditions: True # This affects the effect size boxplots and nothing else
+
+# Whether to normalize by plate or by plate-and-biorep - in my experience hardly changes z-scores
+effect_size_name_for_non_limma_analyis: ec_opacity_z_scored_by_plate_including_gfp
+#effect_size_name_for_non_limma_analyis: ec_opacity_z_scored_by_plate_and_biorep_including_gfp
+
+# In screen 1, some clones are bad. This info below is used to kick clones out before the analysis (and also before z-scoring, actually)
+# TODO: This could easily be changed
+remove_predetermined_outliers: True
+clones_to_remove_via_comment_entry: # Removal here will be via substring matching, for now TODO: Could be improved, discuss with Alessio
+  - No reads
+  - Deletion
+  - deletion
+  - Delet
+  - delet
+  - --> # typically indicates some SNP
+  - Insertion
+  - insertion
+  - Inser
+  - inser
+  - Noise
+  - noise
+  - No 
+  - Wrong
+  - wrong
+
+
+###########################################
+# Plate layout and mapping scheme         #
+###########################################
+# For reference see: https://oc.embl.de/index.php/apps/onlyoffice/s/WXMCyMvquGhfPfn?fileId=50164017 for screen 1
+# For reference see: https://oc.embl.de/index.php/apps/onlyoffice/s/WXMCyMvquGhfPfn?fileId=50157007 for screen 2
+plate_layouts:
+  plate_layout_screen_1:
+    plate_number_vector_384: 
+      # 384 plate 1
+      - 1
+      - 2
+      - 3
+      - 4
+      # 384 plate 2
+      - 5
+      - 6
+      - 7
+      - 8
+    tech_rep_vector_384:
+      # 384 plate 1
+      - 1
+      - 1
+      - 1
+      - 1
+      # 384 plate 2
+      - 1
+      - 1
+      - 1
+      - 1
+    plate_number_vector_1536:
+      # 1536 plate 1
+      - 1
+      - 1
+      - 2
+      - 2
+    tech_rep_vector_1536:
+      # 1536 plate 1
+      - 1
+      - 2
+      - 1
+      - 2  
+  plate_layout_screen_2:
+    # TODO: Give these proper names
+    plate_number_vector_384:
+      # 384 plate 1
+      - 1
+      - 2
+      - 3
+      - 2
+      # 384 plate 2
+      - 4
+      - 5
+      - 6
+      - 6
+      # 384 plate 3
+      - 1
+      - 2
+      - 3
+      - 1
+      # 384 plate 4
+      - 4
+      - 5
+      - 6
+      - 5
+    tech_rep_vector_384:
+      # 384 plate 1
+      - 1
+      - 1
+      - 1
+      - 2
+      # 384 plate 2
+      - 1
+      - 1
+      - 1
+      - 2
+      # 384 plate 3
+      - 2
+      - 3
+      - 2
+      - 3
+      # 384 plate 4
+      - 2
+      - 2
+      - 3
+      - 3  
+    plate_number_vector_1536: 
+      # 1536 plate 1
+      - 1
+      - 2
+      - 3
+      - 4
+    tech_rep_vector_1536:
+      # 1536 plate 1
+      - 1
+      - 1
+      - 1
+      - 1
+
+###########################################
+# General information (should be ok as is)
+###########################################
+
+# variables contained in the iris filenames separated by '-'
+column_names:
+  - cond # cond: Combination of drugs adiminstred (antibiotics; inducers)
+  - numb # numb: code for the concentration of drugs.  
+         ## For example, SpectetIPTG-100101-5_1.JPG: number 100101: Spectomycin concentration 100; Tetracycline concentration 10, IPTG concentration 1
+  - tail # tail: system_PLATEreplicate (third replicate in .docx)
+         ## For example, SpectetIPTG-100101-5_1.JPG: tail 5_1: system 5, PLATEreplicate 1
+control_gene_name: 'gfp'
+cond_color_vector_levels:
+  - Spectet
+  - SpectetAra
+  - SpectetAraIPTG
+  - SpectetIPTG
+  - Spectetamp
+  - SpectetampAra
+  - SpectetampAraIPTG
+  - SpectetampIPTG
+cond_color_vector:
+  - "#66C2A5"  # Spectet
+  - "#FC8D62"  # SpectetAra
+  - "#8DA0CB"  # SpectetAraIPTG
+  - "#E78AC3"  # SpectetIPTG
+  - "#A6D854"  # Spectetamp
+  - "#FFD92F"  # SpectetampAra
+  - "#E5C494"  # SpectetampAraIPTG
+  - "#B3B3B3"  # SpectetampIPTG
