@@ -398,7 +398,14 @@ iris_hits <- iris_wide %>%
   )
 
 if (any(is.na(iris_hits))) {
-  stop("iris_hits contains NAs. I was afraid this might be the case, but I haven't implemented a solution yet. Talk to Nic please.")
+  # stop("iris_hits contains NAs. I was afraid this might be the case, but I haven't implemented a solution yet. Talk to Nic please.")
+  warning("
+  iris_hits contains NAs
+  presumably because some clones were completely filtered out in some conditions
+  or because only a single clone per gene and condition remained (so standard deviation is NA).
+  I'm removing all that stuff")
+  any_na_rows <- apply(iris_hits, 1, \(x) any(is.na(x)))
+  iris_hits <- iris_hits[!any_na_rows, ]
 }
 
 write_tsv(
