@@ -265,7 +265,7 @@ plotHC <- function(dat, meta_cols = NULL, pivlong = TRUE, value_col_name = NULL)
   col_dists <- dist(t(m + min_colony_size_opacity))
 
   if (any(is.na(as.matrix(row_dists))) || any(is.na(as.matrix(col_dists)))) {
-    duplicated.warnings()("NA values in distance matrix (due to no shared non-NA-containing pairs), Skipping heatmap")
+    warning("NA values in distance matrix (due to no shared non-NA-containing pairs), Skipping heatmap")
     return(NULL)
   }
 
