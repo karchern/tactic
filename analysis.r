@@ -551,8 +551,8 @@ data <- iris %>%
   arrange(plate_id)
 
 # TODO: This needs to be somehow exposed to reflect the difference in experimental design between screen 2 and screen 1
-shape_factor <- "techrep384" # screen 1
-# shape_factor <- "techrep96" # screen 2
+# shape_factor <- "techrep384" # screen 1
+shape_factor <- "techrep96" # screen 2
 data_plot <- data %>%
   group_by(folder, genename) %>%
   mutate(plate_replicate = str_c("Plate: ", plate_replicate)) %>%
