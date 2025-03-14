@@ -28,8 +28,6 @@ clones_to_remove_via_comment_entry:
   - No 
   - Wrong
   - wrong
-  - GFP
-  - gfp
 # variables contained in the iris filenames separated by '-'
 column_names:
   - cond # cond: Combination of drugs adiminstred (antibiotics; inducers)

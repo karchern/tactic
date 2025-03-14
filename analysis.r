@@ -1,7 +1,7 @@
 # To install ggembl: https://git.embl.de/grp-zeller/ggembl
 pacman::p_load(data.table, tidyverse, ggrepel, GGally, scales, ComplexHeatmap, limma, Biobase, cowplot, janitor, yaml, RColorBrewer, vegan, patchwork, ggembl, circlize, RColorBrewer)
 source("./helper.R")
-load_yaml_to_global("./input/config.yaml")
+load_yaml_to_global("./config.yaml")
 # This gets loaded from the yaml file
 names(cond_color_vector) <- cond_color_vector_levels
 
@@ -98,6 +98,11 @@ iris <- left_join(map96to384quadrants, map384to1536quadrants, relationship = "ma
   mutate(plate_id = interaction(folder, cond, plate_replicate, numb)) %>%
   setDT() %>%
   as_tibble()
+
+if (remove_predetermined_outliers) {
+  iris <- remove_via_pertial_string_matching(iris, unlist(clones_to_remove_via_comment_entry))
+}
+
 
 # Clean up a bit
 iris <- iris %>%
