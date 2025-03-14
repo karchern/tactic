@@ -1,0 +1,97 @@
+library,strain,clone,genename,comment,row96,col96,plt96,biorep96
+P1+T5 library,481,2,T5_001,Correct,A,1,6,2
+P1+T5 library,482,2,T5_002,Correct,B,1,6,2
+P1+T5 library,483,2,T5_003,Correct,C,1,6,2
+P1+T5 library,484,2,T5_005,Correct,D,1,6,2
+P1+T5 library,485,19,gfp,Correct,E,1,6,2
+P1+T5 library,486,2,T5_006,No alignement,F,1,6,2
+P1+T5 library,487,2,T5_007,Correct,G,1,6,2
+P1+T5 library,488,2,T5_009,Correct,H,1,6,2
+P1+T5 library,489,2,T5_010,GCT (496-498) --> *CT + GGA (505-507) --> GG,A,2,6,2
+P1+T5 library,490,2,T5_011,TTT (13-15) --> *TT,B,2,6,2
+P1+T5 library,491,2,T5_012,Correct,C,2,6,2
+P1+T5 library,492,2,T5_013,Correct,D,2,6,2
+P1+T5 library,493,2,T5_014,Correct,E,2,6,2
+P1+T5 library,494,2,T5_016,Correct,F,2,6,2
+P1+T5 library,495,2,T5_017,Correct,G,2,6,2
+P1+T5 library,496,2,T5_018,GAT (16-18) --> *AT,H,2,6,2
+P1+T5 library,497,2,T5_019,Correct,A,3,6,2
+P1+T5 library,498,20,gfp,Correct,B,3,6,2
+P1+T5 library,499,2,T5_020,Correct,C,3,6,2
+P1+T5 library,500,2,T5_021,Correct,D,3,6,2
+P1+T5 library,501,2,T5_022,Correct,E,3,6,2
+P1+T5 library,502,2,T5_023,TTA (25-27) --> *TA,F,3,6,2
+P1+T5 library,503,2,T5_024,Correct,G,3,6,2
+P1+T5 library,504,2,T5_026,Correct,H,3,6,2
+P1+T5 library,505,2,T5_028,Correct,A,4,6,2
+P1+T5 library,506,2,T5_029,CTA (16-18) --> GTA | L6V,B,4,6,2
+P1+T5 library,507,2,T5_030,Correct,C,4,6,2
+P1+T5 library,508,2,T5_031,Correct,D,4,6,2
+P1+T5 library,509,2,T5_033,Correct,E,4,6,2
+P1+T5 library,510,2,T5_034,Correct,F,4,6,2
+P1+T5 library,511,2,T5_035,CTA (31-33) --> CT*,G,4,6,2
+P1+T5 library,512,2,T5_036,Correct,H,4,6,2
+P1+T5 library,513,2,T5_037,Correct,A,5,6,2
+P1+T5 library,514,2,T5_038,Correct,B,5,6,2
+P1+T5 library,515,2,T5_039,Correct,C,5,6,2
+P1+T5 library,516,2,T5_040,Correct,D,5,6,2
+P1+T5 library,517,2,T5_043,Low quality reads,E,5,6,2
+P1+T5 library,518,2,T5_044,Correct,F,5,6,2
+P1+T5 library,519,2,T5_045,L8F,G,5,6,2
+P1+T5 library,520,2,T5_047,Correct,H,5,6,2
+P1+T5 library,521,2,T5_048,Correct,A,6,6,2
+P1+T5 library,522,2,T5_049,Correct,B,6,6,2
+P1+T5 library,523,21,gfp,Correct,C,6,6,2
+P1+T5 library,524,2,T5_050,Correct,D,6,6,2
+P1+T5 library,525,2,T5_054,Correct,E,6,6,2
+P1+T5 library,526,2,T5_056,Correct,F,6,6,2
+P1+T5 library,527,2,T5_057,Correct,G,6,6,2
+P1+T5 library,528,2,T5_058,Correct,H,6,6,2
+P1+T5 library,529,2,T5_060,Correct,A,7,6,2
+P1+T5 library,530,2,T5_062,Correct,B,7,6,2
+P1+T5 library,531,2,T5_063,Correct,C,7,6,2
+P1+T5 library,532,2,T5_065,Correct,D,7,6,2
+P1+T5 library,533,2,T5_066,Correct,E,7,6,2
+P1+T5 library,534,22,gfp,Correct,F,7,6,2
+P1+T5 library,535,2,T5_067,Correct,G,7,6,2
+P1+T5 library,536,2,T5_068,Correct,H,7,6,2
+P1+T5 library,537,2,T5_070,Correct,A,8,6,2
+P1+T5 library,538,2,T5_071,Correct,B,8,6,2
+P1+T5 library,539,2,T5_072,Correct,C,8,6,2
+P1+T5 library,540,2,T5_073,Correct,D,8,6,2
+P1+T5 library,541,2,T5_074,Correct,E,8,6,2
+P1+T5 library,542,2,T5_076,Correct,F,8,6,2
+P1+T5 library,543,2,T5_079,Correct,G,8,6,2
+P1+T5 library,544,2,T5_080,AAC (772-774) --> AAG | N258K,H,8,6,2
+P1+T5 library,545,23,gfp,Correct,A,9,6,2
+P1+T5 library,546,2,T5_082,Correct,B,9,6,2
+P1+T5 library,547,2,T5_086,Correct,C,9,6,2
+P1+T5 library,548,2,T5_087,Correct,D,9,6,2
+P1+T5 library,549,2,T5_088,Correct,E,9,6,2
+P1+T5 library,550,2,T5_089,Correct,F,9,6,2
+P1+T5 library,551,2,T5_090,Correct,G,9,6,2
+P1+T5 library,552,2,T5_092,GAA (673-675) --> GGA | E225G,H,9,6,2
+P1+T5 library,553,2,T5_093,Correct,A,10,6,2
+P1+T5 library,554,2,T5_096,No reads,B,10,6,2
+P1+T5 library,555,2,T5_100,TTA (7-9) --> TTTA,C,10,6,2
+P1+T5 library,556,2,T5_101,Correct,D,10,6,2
+P1+T5 library,557,2,T5_102,Correct,E,10,6,2
+P1+T5 library,558,2,T5_103,Correct,F,10,6,2
+P1+T5 library,559,2,T5_104,Correct,G,10,6,2
+P1+T5 library,560,2,T5_106,Correct,H,10,6,2
+P1+T5 library,561,2,T5_109,Correct,A,11,6,2
+P1+T5 library,562,2,T5_110,Correct,B,11,6,2
+P1+T5 library,563,24,gfp,Correct,C,11,6,2
+P1+T5 library,564,2,T5_111,"Multiple N, low quality reads, long ORF",D,11,6,2
+P1+T5 library,565,2,T5_112,Correct,E,11,6,2
+P1+T5 library,566,2,T5_116,Correct,F,11,6,2
+P1+T5 library,567,2,T5_117,Correct,G,11,6,2
+P1+T5 library,568,2,T5_119,Correct,H,11,6,2
+P1+T5 library,569,2,T5_121,"First 400 nucleottides correct, after bad sequencing",A,12,6,2
+P1+T5 library,570,2,T5_123,Correct,B,12,6,2
+P1+T5 library,571,2,T5_125,Correct,C,12,6,2
+P1+T5 library,572,2,T5_136,TTC(130-132) --> T**,D,12,6,2
+P1+T5 library,573,2,T5_137,"Correct, long ORF",E,12,6,2
+P1+T5 library,574,2,T5_140,Low quality reads,F,12,6,2
+P1+T5 library,575,2,T5_142,Correct,G,12,6,2
+P1+T5 library,576,25,gfp,Correct,H,12,6,2

@@ -1,0 +1,97 @@
+﻿library,strain,clone,genename,comment,row96,col96,plt96
+P1+T5 library,577,26,gfp,No reads,A,1,7
+P1+T5 library,578,1,T5_004,"CorrectPartial sequencing, Long ORF",B,1,7
+P1+T5 library,579,1,T5_008,Deletion primerPremature stop codon,C,1,7
+P1+T5 library,580,1,T5_015,Deletions primerPremature stop codon,D,1,7
+P1+T5 library,581,1,T5_025,Deletion primerPremature stop codon,E,1,7
+P1+T5 library,582,1,T5_027,Correct,F,1,7
+P1+T5 library,583,1,T5_032,No reads,G,1,7
+P1+T5 library,584,1,T5_041,No reads,H,1,7
+P1+T5 library,585,1,T5_042,Correct,A,2,7
+P1+T5 library,586,1,T5_046,Deletion primerAbolish stop codon,B,2,7
+P1+T5 library,587,1,T5_051,Deletion primerPremature stop codon,C,2,7
+P1+T5 library,588,1,T5_052,Correct,D,2,7
+P1+T5 library,589,1,T5_053,Correct,E,2,7
+P1+T5 library,590,1,T5_055,"Insertion Add two aa, no frame change, Same mutation as Plate D1",F,2,7
+P1+T5 library,591,1,T5_059,No reads,G,2,7
+P1+T5 library,592,1,T5_061,Point mutation primerMismatch initial methionine,H,2,7
+P1+T5 library,593,1,T5_064,Insertion primerPremature stop codon,A,3,7
+P1+T5 library,594,1,T5_069,Deletion primerPremature stop codon,B,3,7
+P1+T5 library,595,1,T5_075,Deletion primerPremature stop codon,C,3,7
+P1+T5 library,596,27,gfp,Correct,D,3,7
+P1+T5 library,597,1,T5_078,Point mutation primer,E,3,7
+P1+T5 library,598,1,T5_085,Correct,F,3,7
+P1+T5 library,599,1,T5_091,No reads,G,3,7
+P1+T5 library,600,1,T5_095,Insertion primerPremature stop codon,H,3,7
+P1+T5 library,601,1,T5_097,"DeletiionAbolish stop codon, same mutation as plate D1",A,4,7
+P1+T5 library,602,1,T5_098,Correct,B,4,7
+P1+T5 library,603,1,T5_099,Wrong clone: its T5_080,C,4,7
+P1+T5 library,604,1,T5_105,Correct,D,4,7
+P1+T5 library,605,1,T5_107,Correct,E,4,7
+P1+T5 library,606,1,T5_108,Correct,F,4,7
+P1+T5 library,607,1,T5_113,No reads,G,4,7
+P1+T5 library,608,1,T5_114,No reads,H,4,7
+P1+T5 library,609,1,T5_115,Correct,A,5,7
+P1+T5 library,610,1,T5_118,Correct,B,5,7
+P1+T5 library,611,1,T5_120,Deletion primerPremature stop codon,C,5,7
+P1+T5 library,612,1,T5_122,"CorrectLong ORF, incomplete sequence",D,5,7
+P1+T5 library,613,1,T5_124,Deletion primerPremature stop codon,E,5,7
+P1+T5 library,614,1,T5_126,Correct,F,5,7
+P1+T5 library,615,1,T5_128,No reads,G,5,7
+P1+T5 library,616,1,T5_129,Deletion primerPremature stop codon,H,5,7
+P1+T5 library,617,1,T5_130,CorrectPoint mutation silent,A,6,7
+P1+T5 library,618,1,T5_131,Correct,B,6,7
+P1+T5 library,619,1,T5_132,Correct,C,6,7
+P1+T5 library,620,1,T5_133,"CorrectMultiple N , low quality reads but most ORF is there",D,6,7
+P1+T5 library,621,1,T5_134,Correct,E,6,7
+P1+T5 library,622,1,T5_135,Correct,F,6,7
+P1+T5 library,623,28,gfp,No reads,G,6,7
+P1+T5 library,624,1,T5_138,No reads,H,6,7
+P1+T5 library,625,1,T5_139,Correct,A,7,7
+P1+T5 library,626,1,T5_143,CorrectFrom sequence of round1,B,7,7
+P1+T5 library,627,1,T5_144,GFP,C,7,7
+P1+T5 library,628,1,T5_145,"CorrectLong ORF, incomplete sequence",D,7,7
+P1+T5 library,629,1,T5_146,Correct,E,7,7
+P1+T5 library,630,1,T5_148,Correct,F,7,7
+P1+T5 library,631,1,T5_151,Correct,G,7,7
+P1+T5 library,632,1,T5_152,No reads,H,7,7
+P1+T5 library,633,1,T5_153,Deletion primerPremature stop codon,A,8,7
+P1+T5 library,634,29,gfp,Correct,B,8,7
+P1+T5 library,635,1,T5_154,"Deletion primerAbolish stop codon, confirmed with reverse",C,8,7
+P1+T5 library,636,1,T5_155,Deletion primer Premature stop codon,D,8,7
+P1+T5 library,637,1,T5_156,Correct,E,8,7
+P1+T5 library,638,1,T5_157,Gfp,F,8,7
+P1+T5 library,639,1,T5_158,Correct,G,8,7
+P1+T5 library,640,1,T5_159,No reads,H,8,7
+P1+T5 library,641,1,T5_160,Correct,A,9,7
+P1+T5 library,642,1,T5_161,Correct,B,9,7
+P1+T5 library,643,1,T5_162,Correct,C,9,7
+P1+T5 library,644,1,T5_tRNA001,Correct,D,9,7
+P1+T5 library,645,1,T5_tRNA010,Correct,E,9,7
+P1+T5 library,646,1,T5_tRNA011,Correct,F,9,7
+P1+T5 library,647,1,T5_tRNA012,Correct,G,9,7
+P1+T5 library,648,1,T5_tRNA013,No reads,H,9,7
+P1+T5 library,649,1,T5_tRNA014,Correct,A,10,7
+P1+T5 library,650,1,T5_tRNA015,Correct,B,10,7
+P1+T5 library,651,1,T5_tRNA016,Correct,C,10,7
+P1+T5 library,652,1,T5_tRNA002,Correct,D,10,7
+P1+T5 library,653,1,T5_tRNA003,Correct,E,10,7
+P1+T5 library,654,1,T5_tRNA004,Deletion primer,F,10,7
+P1+T5 library,655,1,T5_tRNA005,Point mutationSame as plate D1,G,10,7
+P1+T5 library,656,30,gfp,No reads,H,10,7
+P1+T5 library,657,1,T5_tRNA006,Correct,A,11,7
+P1+T5 library,658,1,T5_tRNA007,Correct,B,11,7
+P1+T5 library,659,1,T5_tRNA008,Correct,C,11,7
+P1+T5 library,660,1,T5_077,"CorrectLong ORF, incomplete sequence",D,11,7
+P1+T5 library,661,1,T5_081,Correct,E,11,7
+P1+T5 library,662,1,T5_083,Correct,F,11,7
+P1+T5 library,663,1,T5_084,Correct,G,11,7
+P1+T5 library,664,1,T5_094,No reads,H,11,7
+P1+T5 library,665,31,gfp,Correct,A,12,7
+P1+T5 library,666,1,T5_127,"CorrectLong ORF, incomplete sequence",B,12,7
+P1+T5 library,667,1,T5_141,"Deletion primerPremature stop codon, same mutation as Plate D1",C,12,7
+P1+T5 library,668,1,T5_147,Correct,D,12,7
+P1+T5 library,669,1,T5_149,Point mutation primerMutated initial M,E,12,7
+P1+T5 library,670,1,T5_150,"Point mutationMismatches, no frame change, same as Plate C1",F,12,7
+P1+T5 library,671,1,T5_tRNA009,Correct,G,12,7
+P1+T5 library,672,1,empty,,H,12,7
