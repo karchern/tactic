@@ -41,6 +41,41 @@ clones_to_remove_via_comment_entry: # Removal here will be via substring matchin
 # For reference see: https://oc.embl.de/index.php/apps/onlyoffice/s/WXMCyMvquGhfPfn?fileId=50164017 for screen 1
 # For reference see: https://oc.embl.de/index.php/apps/onlyoffice/s/WXMCyMvquGhfPfn?fileId=50157007 for screen 2
 plate_layouts:
+  plate_layout_screen_1:
+    plate_number_vector_384: 
+      # 384 plate 1
+      - 1
+      - 2
+      - 3
+      - 4
+      # 384 plate 2
+      - 5
+      - 6
+      - 7
+      - 8
+    tech_rep_vector_384:
+      # 384 plate 1
+      - 1
+      - 1
+      - 1
+      - 1
+      # 384 plate 2
+      - 1
+      - 1
+      - 1
+      - 1
+    plate_number_vector_1536:
+      # 1536 plate 1
+      - 1
+      - 1
+      - 2
+      - 2
+    tech_rep_vector_1536:
+      # 1536 plate 1
+      - 1
+      - 2
+      - 1
+      - 2  
   plate_layout_screen_2:
     # TODO: Give these proper names
     plate_number_vector_384:
@@ -97,9 +132,6 @@ plate_layouts:
       - 1
       - 1
       - 1
-  
-  
-
 
 ###########################################
 # General information (should be ok as is)
