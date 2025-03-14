@@ -92,7 +92,7 @@ iris <- left_join(map96to384quadrants, map384to1536quadrants, relationship = "ma
   left_join(read96wMaps(), by = c("plt96", "row96", "col96")) %>%
   mutate(
     colony_id  = interaction(plt1536, row1536, col1536),
-    biorep_all = interaction(across(all_of(c(biol_replicate_column_name, tech_replicate_column_name, plate_replicate_column_name, "techrep384")))) %>% as.numeric() %>% str_pad(2, pad = "0")
+    biorep_all = interaction(across(contains("rep"))) %>% as.numeric() %>% str_pad(2, pad = "0")
   ) %>%
   mutate(across(contains("rep"), \(x) paste0("rep", x))) %>%
   mutate(plate_id = interaction(folder, cond, plate_replicate, numb)) %>%
@@ -103,7 +103,8 @@ iris <- left_join(map96to384quadrants, map384to1536quadrants, relationship = "ma
 iris <- iris %>%
   select(
     cond, numb, genename, system_desc, opacity, colony_id, folder, row1536, col1536, plate_id,
-    all_of(c(biol_replicate_column_name, tech_replicate_column_name, plate_replicate_column_name, "biorep_all", "techrep384"))
+    #all_of(c(biol_replicate_column_name, tech_replicate_column_name, plate_replicate_column_name, "biorep_all", "techrep384"))
+    contains("rep")
   ) %>%
   # mutate(across(contains("rep"), as.numeric)) %>%
   # TODO: Rename biol_repliate_column_name to bio_rep and tech_replicate_column_name to tech_rep
