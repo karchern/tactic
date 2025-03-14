@@ -16,7 +16,7 @@ effect_size_name_for_non_limma_analyis: ec_opacity_z_scored_by_plate_including_g
 
 # In screen 1, some clones are bad. This info below is used to kick clones out before the analysis (and also before z-scoring, actually)
 # TODO: This could easily be changed
-remove_predetermined_outliers: True
+remove_predetermined_outliers: False
 clones_to_remove_via_comment_entry: # Removal here will be via substring matching, for now TODO: Could be improved, discuss with Alessio
   - No reads
   - Deletion
