@@ -2,7 +2,7 @@
 # Parameters - read carefully #
 ###############################
 
-screen: screen_2
+screen: screen_1
 iris_input_folder: '/Users/karcher/tactic/input/' 
 out_folder: '/Users/karcher/tactic/output/' 
 
