@@ -10,26 +10,6 @@ visualize_only_control_and_treatment_conditions: True
 # plate vs plate-and-biorep normalization essentially make no  difference
 effect_size_name_for_non_limma_analyis: ec_opacity_z_scored_by_plate_including_gfp
 #effect_size_name_for_non_limma_analyis: ec_opacity_z_scored_by_plate_and_biorep_including_gfp
-# Removal here will be via substring matching, for now
-remove_predetermined_outliers: True
-clones_to_remove_via_comment_entry: 
-  - No reads
-  - Deletion
-  - deletion
-  - Delet
-  - delet
-  - --> # typically indicates some SNP
-  - Insertion
-  - insertion
-  - Inser
-  - inser
-  - Noise
-  - noise
-  - No 
-  - Wrong
-  - wrong
-  - GFP
-  - gfp
 # variables contained in the iris filenames separated by '-'
 column_names:
   - cond # cond: Combination of drugs adiminstred (antibiotics; inducers)

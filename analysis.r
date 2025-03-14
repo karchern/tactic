@@ -117,10 +117,6 @@ iris <- left_join(map96to384quadrants, map384to1536quadrants, relationship = "ma
   setDT() %>%
   as_tibble()
 
-if (remove_predetermined_outliers) {
-  iris <- remove_via_pertial_string_matching(iris, unlist(clones_to_remove_via_comment_entry))
-}
-
 # Clean up a bit
 iris <- iris %>%
   select(
@@ -250,7 +246,7 @@ ma <- max(iris[[value_tp]])
 get_opacity_measurement_plots(iris, "gfp", value_tp, "opacity_edge_corrected", mi, ma, "Edge-corrected opacity values")
 
 iris <- iris %>%
-  filter(grepl("1001021", numb) | grepl("10010201", numb) | grepl("100100201", numb) | grepl("10010021", numb) | grepl("10010021", numb) | grepl("1001001", numb) | grepl("100101", numb)) # SpectetAraIPTG (library + system induced, with low and high concentrations) and SpectetIPTG (only system induced)
+  filter(grepl("10010201", numb) | grepl("100100201", numb) | grepl("10010021", numb) | grepl("10010021", numb) | grepl("1001001", numb) | grepl("100101", numb)) # SpectetAraIPTG (library + system induced, with low and high concentrations) and SpectetIPTG (only system induced)
 
 iris <- iris %>%
   select(-opacity) %>% # We have edge-controlled opacity now, so we dont need this anymore

@@ -259,15 +259,6 @@ plotHC <- function(dat, meta_cols = NULL, pivlong = TRUE, value_col_name = NULL)
     # ~
   )
   names(annCols) <- meta_cols
-
-  row_dists <- dist(m + min_colony_size_opacity)
-  col_dists <- dist(t(m + min_colony_size_opacity))
-
-  if (any(is.na(as.matrix(row_dists))) || any(is.na(as.matrix(col_dists)))) {
-    warning("NA values in distance matrix (due to no shared non-NA-containing pairs), Skipping heatmap")
-    return(NULL)
-  }
-
   pheatmap(
     # TODO
     log10(m + min_colony_size_opacity), # assume multiplicative errors
@@ -624,6 +615,7 @@ rep_cor_qc_and_limma <- function() {
     names(cor_info) <- reps
     # represnt biorep_all pairwise correlation matrix (one per condition) to judge the quality of the replicates
     # color by biorep96, techrep96, plate_replicate
+
     hm_list <- get_condition_wise_replicate_correlation_matrix(cor_info[["biorep_all"]], folder = folder)
     pdf(file = paste0(out_folder, "/pairwise_replicate_correlation_matrix.pdf"), h = 9, w = 16)
     plot(wrap_plots(hm_list) + plot_layout(nrow = 2, byrow = TRUE, guides = "collect"))
@@ -633,9 +625,6 @@ rep_cor_qc_and_limma <- function() {
     lapply(reps, function(x) {
       pdf(file = paste0(out_folder, "/qc_", x, "_clustering_median_opacity_over_other_replicates.pdf"), h = 8, w = 6)
       plt <- plotHC(dat_wide[[x]], meta_cols = c("cond", "numb", "rep"), value_col_name = "value")
-      if (is.null(plt)) {
-        return()
-      }
       draw(plt)
       dev.off()
     })
@@ -650,9 +639,6 @@ rep_cor_qc_and_limma <- function() {
       pivlong = FALSE,
       value_col_name = "opacity"
     )
-    if (is.null(plt)) {
-      return()
-    }
     draw(plt)
     dev.off()
 
@@ -704,14 +690,4 @@ rep_cor_qc_and_limma <- function() {
     ))
   })
   return(res)
-}
-
-remove_via_pertial_string_matching <- function(dat, vector_of_substrings) {
-  # dat is a tibble, vector_of_substrings is a list of strings
-  # filter dat on the 'comment' column, removing all rows that contain any of the substrings
-  # in vector_of_substrings
-  return(
-    dat %>%
-      filter(!str_detect(comment, str_c(vector_of_substrings, collapse = "|")))
-  )
 }
