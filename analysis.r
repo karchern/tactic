@@ -550,6 +550,9 @@ data <- iris %>%
   mutate(iptgconc_plate_id = factor(iptgconc_plate_id, levels = sort(unique(as.character(iptgconc_plate_id))))) %>%
   arrange(plate_id)
 
+# TODO: This needs to be somehow exposed to reflect the difference in experimental design between screen 2 and screen 1
+shape_factor <- "techrep384" # screen 1
+# shape_factor <- "techrep96" # screen 2
 data_plot <- data %>%
   group_by(folder, genename) %>%
   mutate(plate_replicate = str_c("Plate: ", plate_replicate)) %>%
@@ -558,7 +561,7 @@ data_plot <- data %>%
   mutate(
     plottt = map(data, \(x) {
       return(
-        ggplot(x, aes(x = plate_replicate, y = .data[[effect_size_name_for_non_limma_analyis]], color = cond_ara, group = cond_ara, shape = techrep96)) +
+        ggplot(x, aes(x = plate_replicate, y = .data[[effect_size_name_for_non_limma_analyis]], color = cond_ara, group = cond_ara, shape = .data[[shape_factor]])) +
           # geom_boxplot(outlier.color = NA) +
           geom_jitter(position = position_jitterdodge(jitter.width = 0.125, jitter.height = 0), alpha = 0.5) +
           theme_presentation() +
@@ -572,8 +575,11 @@ data_plot <- data %>%
       )
     })
   )
+data_plot <- data_plot %>%
+  mutate(num_bioreps = map_dbl(data, \(x) length(unique(x$biorep96)))) %>%
+  arrange(desc(num_bioreps))
 
-pwalk(list(data_plot$plottt, data_plot$folder, data_plot$genename), \(plo, fol, gn) {
+pwalk(list(data_plot$plottt, data_plot$folder, data_plot$genename, data_plot$num_bioreps), \(plo, fol, gn, nbr) {
   # if str_c(out_folder, "/", fol, '/opacities_per_gene') doesnt exit, generate it
   if (!dir.exists(str_c(out_folder, "/", fol, "/opacities_per_gene"))) {
     dir.create(str_c(out_folder, "/", fol, "/opacities_per_gene"), recursive = TRUE)
@@ -582,6 +588,6 @@ pwalk(list(data_plot$plottt, data_plot$folder, data_plot$genename), \(plo, fol, 
     plot = plo,
     filename = str_c(out_folder, "/", fol, "/opacities_per_gene", "/", gn, "_", effect_size_name_for_non_limma_analyis, ".pdf"),
     width = 6,
-    height = 5
+    height = 5 * ((nbr) / 2)
   )
 })
