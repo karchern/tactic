@@ -117,6 +117,10 @@ iris <- left_join(map96to384quadrants, map384to1536quadrants, relationship = "ma
   setDT() %>%
   as_tibble()
 
+if (remove_predetermined_outliers) {
+  iris <- remove_via_pertial_string_matching(iris, unlist(clones_to_remove_via_comment_entry))
+}
+
 # Clean up a bit
 iris <- iris %>%
   select(
