@@ -319,8 +319,8 @@ iris <- iris %>%
   mutate(iptgconc = case_when(
     numb == "1001001" ~ "iptg_low",
     numb == "100101" ~ "iptg_high",
-    numb == "10010201" ~ "iptg_low",
-    numb == "1001021" ~ "iptg_high",
+    numb == "10010201" | numb == "100100201" ~ "iptg_low",
+    numb == "1001021" | numb == "10010021" ~ "iptg_high",
     TRUE ~ NA
   ))
 
