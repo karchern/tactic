@@ -7,11 +7,11 @@ names(cond_color_vector) <- cond_color_vector_levels
 
 map96to384quadrants <- registerQuadrants("384w",
   plate_number = plate_layouts[[str_c("plate_layout_", screen)]][["plate_number_vector_384"]],
-  tech_rep = rep(1, length(plate_layouts[[str_c("plate_layout_", screen)]][["plate_number_vector_384"]]))
+  tech_rep = plate_layouts[[str_c("plate_layout_", screen)]][["tech_rep_vector_384"]]
 )
 map384to1536quadrants <- registerQuadrants("1536w",
   plate_number = plate_layouts[[str_c("plate_layout_", screen)]][["plate_number_vector_1536"]],
-  tech_rep = rep(1, length(plate_layouts[[str_c("plate_layout_", screen)]][["plate_number_vector_1536"]]))
+  tech_rep = plate_layouts[[str_c("plate_layout_", screen)]][["tech_rep_vector_1536"]]
 )
 
 
