@@ -360,7 +360,9 @@ iris <- iris %>%
   mutate(
     cond = case_when(
       numb == "10010201" ~ "SpectetAraIPTGLow",
+      numb == "100100201" ~ "SpectetAraIPTGLow",
       numb == "1001021" ~ "SpectetAraIPTGHigh",
+      numb == "10010021" ~ "SpectetAraIPTGHigh",
       numb == "1001001" ~ "SpectetIPTGLow",
       numb == "100101" ~ "SpectetIPTGHigh"
     )
