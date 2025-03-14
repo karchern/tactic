@@ -103,7 +103,7 @@ iris <- left_join(map96to384quadrants, map384to1536quadrants, relationship = "ma
 iris <- iris %>%
   select(
     cond, numb, genename, system_desc, opacity, colony_id, folder, row1536, col1536, plate_id,
-    #all_of(c(biol_replicate_column_name, tech_replicate_column_name, plate_replicate_column_name, "biorep_all", "techrep384"))
+    # all_of(c(biol_replicate_column_name, tech_replicate_column_name, plate_replicate_column_name, "biorep_all", "techrep384"))
     contains("rep")
   ) %>%
   # mutate(across(contains("rep"), as.numeric)) %>%
@@ -230,7 +230,7 @@ ma <- max(iris[[value_tp]])
 get_opacity_measurement_plots(iris, "gfp", value_tp, "opacity_edge_corrected", mi, ma, "Edge-corrected opacity values")
 
 iris <- iris %>%
-  filter(grepl("10010201", numb) | grepl("1001021", numb) | grepl("1001001", numb) | grepl("100101", numb)) # SpectetAraIPTG (library + system induced, with low and high concentrations) and SpectetIPTG (only system induced)
+  filter(grepl("10010201", numb) | grepl("100100201", numb) | grepl("10010021", numb) | grepl("10010021", numb) | grepl("1001001", numb) | grepl("100101", numb)) # SpectetAraIPTG (library + system induced, with low and high concentrations) and SpectetIPTG (only system induced)
 
 iris <- iris %>%
   select(-opacity) %>% # We have edge-controlled opacity now, so we dont need this anymore
