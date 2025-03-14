@@ -645,7 +645,7 @@ rep_cor_qc_and_limma <- function() {
 
     # TODO: Clean this up and compare z-score analysis to Limma
     dat <- dat_wide[["biorep_all"]] %>%
-      filter(numb %in% c("10010201", "10010500201", "1001001", "100105001")) %>%
+      filter(numb %in% c("10010201", "100100201", "10010500201", "1001001", "100105001")) %>%
       mutate(cond = gsub("Spectet|Spectetamp", "", cond))
 
     dat_long <- dat %>%
