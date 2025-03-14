@@ -260,8 +260,15 @@ plotHC <- function(dat, meta_cols = NULL, pivlong = TRUE, value_col_name = NULL)
     # ~
   )
   names(annCols) <- meta_cols
-  mm <- m + min_colony_size_opacity
-  mm[is.na(mm)] <- 0
+
+  row_dists <- dist(m + min_colony_size_opacity)
+  col_dists <- dist(t(m + min_colony_size_opacity))
+
+  if (any(is.na(as.matrix(row_dists))) || any(is.na(as.matrix(col_dists)))) {
+    duplicated.warnings()("NA values in distance matrix (due to no shared non-NA-containing pairs), Skipping heatmap")
+    return(NULL)
+  }
+
   pheatmap(
     # TODO
     log10(m + min_colony_size_opacity), # assume multiplicative errors
@@ -270,8 +277,6 @@ plotHC <- function(dat, meta_cols = NULL, pivlong = TRUE, value_col_name = NULL)
     show_colnames = T,
     fontsize_row = 2,
     fontsize_col = 2,
-    cluster_rows = hclust(dist(t(mm + min_colony_size_opacity))),
-    cluster_cols = hclust(dist(mm + min_colony_size_opacity)),
     # clustering_method='single',
     na_col = "#FFFFFF",
     heatmap_legend_param = list(title = expression(log[10] * (opacity)))
@@ -620,24 +625,22 @@ rep_cor_qc_and_limma <- function() {
     names(cor_info) <- reps
     # represnt biorep_all pairwise correlation matrix (one per condition) to judge the quality of the replicates
     # color by biorep96, techrep96, plate_replicate
-    print("a)")
     hm_list <- get_condition_wise_replicate_correlation_matrix(cor_info[["biorep_all"]], folder = folder)
     pdf(file = paste0(out_folder, "/pairwise_replicate_correlation_matrix.pdf"), h = 9, w = 16)
     plot(wrap_plots(hm_list) + plot_layout(nrow = 2, byrow = TRUE, guides = "collect"))
     dev.off()
 
-    print("b)")
     # plot-n-store the hierarchical clustering plots
     lapply(reps, function(x) {
       pdf(file = paste0(out_folder, "/qc_", x, "_clustering_median_opacity_over_other_replicates.pdf"), h = 8, w = 6)
       plt <- plotHC(dat_wide[[x]], meta_cols = c("cond", "numb", "rep"), value_col_name = "value")
-      print("c")
-      browser()
+      if (is.null(plt)) {
+        return()
+      }
       draw(plt)
       dev.off()
     })
 
-    print("c)")
     # Also without averaging, over all replicates, with sensible color scale
     pdf(file = paste0(out_folder, "/qc_", "clustering_median_opacity_over_other_replicates.pdf"), h = 8, w = 6)
     plt <- plotHC(
@@ -648,10 +651,12 @@ rep_cor_qc_and_limma <- function() {
       pivlong = FALSE,
       value_col_name = "opacity"
     )
+    if (is.null(plt)) {
+      return()
+    }
     draw(plt)
     dev.off()
 
-    print("d")
     # TODO: Clean this up and compare z-score analysis to Limma
     dat <- dat_wide[["biorep_all"]] %>%
       filter(numb %in% c("10010201", "100100201", "10010500201", "1001001", "100105001")) %>%
