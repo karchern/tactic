@@ -5,32 +5,14 @@ load_yaml_to_global("./config.yaml")
 # This gets loaded from the yaml file
 names(cond_color_vector) <- cond_color_vector_levels
 
-plate_number_vector_384 <- c(
-  1, 2, 3, 2,
-  4, 5, 6, 6,
-  1, 2, 3, 1,
-  4, 5, 6, 5
-)
-tech_rep_vector_384 <- c(
-  1, 1, 1, 2,
-  1, 1, 1, 2,
-  2, 3, 2, 3,
-  2, 2, 3, 3
-)
-
 map96to384quadrants <- registerQuadrants("384w",
-  plate_number = plate_number_vector_384,
-  tech_rep = tech_rep_vector_384
+  plate_number = plate_layouts[[str_c("plate_layout_", screen)]][["plate_number_vector_384"]],
+  tech_rep = rep(1, length(plate_layouts[[str_c("plate_layout_", screen)]][["plate_number_vector_384"]]))
 )
-
-plate_number_vector_1536 <- c(1, 2, 3, 4)
-tech_rep_vector_1536 <- c(1, 1, 1, 1)
-
 map384to1536quadrants <- registerQuadrants("1536w",
-  # TODO: TO be consistent with google scheme, make this work with letters
-  plate_number = plate_number_vector_1536,
-  tech_rep = tech_rep_vector_1536
-) # TODO: For safety reasons, maybe remove biorep384, techrep384???
+  plate_number = plate_layouts[[str_c("plate_layout_", screen)]][["plate_number_vector_1536"]],
+  tech_rep = rep(1, length(plate_layouts[[str_c("plate_layout_", screen)]][["plate_number_vector_1536"]]))
+)
 
 
 folders <- list.files(str_c(iris_input_folder, screen, "/iris_files"), full.names = T)

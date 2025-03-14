@@ -2,10 +2,9 @@
 # Parameters - read carefully #
 ###############################
 
-
 screen: screen_2
-iris_input_folder: '/Users/karcher/tactic/input/iris_files/' 
-out_folder: '/Users/karcher/tactic/output' 
+iris_input_folder: '/Users/karcher/tactic/input/' 
+out_folder: '/Users/karcher/tactic/output/' 
 
 z_score_cutoff: 1
 min_colony_size_opacity: 12000
@@ -34,6 +33,72 @@ clones_to_remove_via_comment_entry: # Removal here will be via substring matchin
   - No 
   - Wrong
   - wrong
+
+
+###########################################
+# Plate layout and mapping scheme         #
+###########################################
+# For reference see: https://oc.embl.de/index.php/apps/onlyoffice/s/WXMCyMvquGhfPfn?fileId=50164017 for screen 1
+# For reference see: https://oc.embl.de/index.php/apps/onlyoffice/s/WXMCyMvquGhfPfn?fileId=50157007 for screen 2
+plate_layouts:
+  plate_layout_screen_2:
+    # TODO: Give these proper names
+    plate_number_vector_384:
+      # 384 plate 1
+      - 1
+      - 2
+      - 3
+      - 2
+      # 384 plate 2
+      - 4
+      - 5
+      - 6
+      - 6
+      # 384 plate 3
+      - 1
+      - 2
+      - 3
+      - 1
+      # 384 plate 4
+      - 4
+      - 5
+      - 6
+      - 5
+    tech_rep_vector_384:
+      # 384 plate 1
+      - 1
+      - 1
+      - 1
+      - 2
+      # 384 plate 2
+      - 1
+      - 1
+      - 1
+      - 2
+      # 384 plate 3
+      - 2
+      - 3
+      - 2
+      - 3
+      # 384 plate 4
+      - 2
+      - 2
+      - 3
+      - 3  
+    plate_number_vector_1536: 
+      # 1536 plate 1
+      - 1
+      - 2
+      - 3
+      - 4
+    tech_rep_vector_1536:
+      # 1536 plate 1
+      - 1
+      - 1
+      - 1
+      - 1
+  
+  
 
 
 ###########################################
