@@ -196,7 +196,7 @@ iris <- iris_orig %>%
   filter(!str_detect(folder, "doubleplasmid")) %>%
   {
     if (visualize_only_control_and_treatment_conditions) {
-      (.) %>% filter(grepl("10010201", numb) | grepl("1001021", numb) | grepl("1001001", numb) | grepl("100101", numb)) # SpectetAraIPTG (library + system induced, with low and high concentrations) and SpectetIPTG (only system induced))
+      (.) %>% filter(grepl("100100201", numb) | grepl("10010201", numb) | grepl("10010021", numb) | grepl("1001021", numb) | grepl("1001001", numb) | grepl("100101", numb)) # SpectetAraIPTG (library + system induced, with low and high concentrations) and SpectetIPTG (only system induced))
     } else {
       (.)
     }
