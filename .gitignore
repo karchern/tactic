@@ -1,2 +1,4 @@
 output/*/*/opacities_per_gene
 output/*/*/opacities_per_gene_scaled_by_plate
+tagged_archives
+tagged_archives_unpacked
